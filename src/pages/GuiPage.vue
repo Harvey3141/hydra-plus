@@ -10,6 +10,7 @@ import {
   INITIAL_BLOCKS,
   MAX_NUMBER_OF_EXTERNALS,
   MAX_NUMBER_OF_SOURCES,
+  TYPE_SRC,
 } from "@/constants";
 
 import NavigationPanel from "@/components/NavigationPanel";
@@ -184,7 +185,7 @@ const moveBlock = (e, index, type, position) => {
       resetZIndexes();
     }
 
-    if (type === "source") {
+    if (type === TYPE_SRC) {
       store.setFocus(store.blocks[index]);
     }
   }
@@ -257,7 +258,7 @@ const handleChange = (isEnterKey = false) => {
   prevBlocks.value = deepCopy(newBlocks);
 };
 
-const canPasteOnPlayground = computed(() => store.copied?.type === "source");
+const canPasteOnPlayground = computed(() => store.copied?.type === TYPE_SRC);
 
 const pasteOnPlayground = () => {
   store.setFocus(null);

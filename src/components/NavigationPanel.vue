@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from "vue";
 import { useHydraStore } from "@/stores/hydra";
-import { MODIFIER_KEY } from "@/constants";
+import { MODIFIER_KEY, TYPE_COMPLEX, TYPE_EXTERNAL } from "@/constants";
 
 import {
   Menubar,
@@ -84,8 +84,8 @@ const isAddEffectModalDisabled = computed(() => {
   const { focused } = store;
   return (
     !focused ||
-    (focused.type === "complex" && focused.blocks.length > 0) ||
-    focused.type === "external"
+    (focused.type === TYPE_COMPLEX && focused.blocks.length > 0) ||
+    focused.type === TYPE_EXTERNAL
   );
 });
 
