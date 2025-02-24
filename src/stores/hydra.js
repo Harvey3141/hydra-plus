@@ -352,7 +352,6 @@ export const useHydraStore = defineStore("hydra", () => {
   };
 
   const resetCut = () => {
-    copied.value = null;
     copiedParent.value = null;
     isCut.value = false;
   };
