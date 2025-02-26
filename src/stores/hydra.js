@@ -64,6 +64,13 @@ export const useHydraStore = defineStore("hydra", () => {
   const addParent = (source, shouldSetHistory = true) => {
     const copiedSource = deepCopy(source);
 
+    if (!canPasteParent.value) {
+      showErrorToast(
+        `Can't paste here: inserting "${copiedSource.name}" into "${focused.value?.name}".`,
+      );
+      return false;
+    }
+
     if (
       source.type === TYPE_SRC &&
       blocks.value.length >= MAX_NUMBER_OF_SOURCES
@@ -71,7 +78,7 @@ export const useHydraStore = defineStore("hydra", () => {
       showErrorToast(
         `You can't add more than ${MAX_NUMBER_OF_SOURCES} sources.`,
       );
-      return;
+      return false;
     }
 
     if (
@@ -81,7 +88,7 @@ export const useHydraStore = defineStore("hydra", () => {
       showErrorToast(
         `You can't add more than ${MAX_NUMBER_OF_EXTERNALS} externals.`,
       );
-      return;
+      return false;
     }
 
     const newBlock = {
@@ -94,13 +101,16 @@ export const useHydraStore = defineStore("hydra", () => {
         : DEFAULT_POSITION,
     };
 
+    window.contextMenuPosition = null;
+
     if (source.type === TYPE_SRC) {
       blocks.value.push(newBlock);
     } else {
       externalSourceBlocks.value.push(newBlock);
     }
 
-    focused.value = newBlock;
+    setFocus(newBlock);
+
     synthSettings.output = blocks.value.length - 1;
 
     if (source.type === TYPE_EXTERNAL) {
@@ -116,21 +126,32 @@ export const useHydraStore = defineStore("hydra", () => {
         shouldSetHistory,
       });
     }
+
+    return true;
   };
 
   const addChild = (effect, shouldSetHistory = true) => {
-    if (!focused.value) return;
+    if (canPasteChild.value) {
+      focused.value.blocks.push(deepCopy(effect));
+    } else if (canPasteChildToParent.value) {
+      focusedParent.value.blocks.push(deepCopy(effect));
+    } else {
+      showErrorToast(
+        `Can't paste here: inserting "${copied.value.name}" into "${focused.value.name}".`,
+      );
+      return false;
+    }
 
-    focused.value.blocks.push(deepCopy(effect));
-
-    if (effect.type === TYPE_COMPLEX) {
-      focused.value = focused.value.blocks[focused.value.blocks.length - 1];
+    if (effect.type === TYPE_COMPLEX && effect.blocks.length === 0) {
+      setFocus(focused.value.blocks[focused.value.blocks.length - 1]);
     }
 
     setBlocks({
       blocks: [...blocks.value, ...externalSourceBlocks.value],
       shouldSetHistory,
     });
+
+    return true;
   };
 
   const setBlocks = ({
@@ -184,18 +205,21 @@ export const useHydraStore = defineStore("hydra", () => {
     });
   };
 
-  const deleteChild = ({ element, parent }) => {
+  const deleteChild = ({ element, parent }, ignoreFocus) => {
     const stack = parent.blocks ? [parent.blocks] : [];
 
     while (stack.length) {
       const currentArray = stack.pop();
       for (let i = currentArray.length - 1; i >= 0; i--) {
         if (currentArray[i] === element) {
-          setFocus(parent);
+          if (!ignoreFocus) setFocus(parent);
+
           currentArray.splice(i, 1);
+
           setBlocks({
             blocks: [...blocks.value, ...externalSourceBlocks.value],
           });
+
           return;
         }
 
@@ -280,16 +304,13 @@ export const useHydraStore = defineStore("hydra", () => {
     post(`speed = ${settings.speed}`);
 
     const multiplier = (settings.resolution * window.devicePixelRatio) / 100;
-    eval(
-      `setResolution(${window.outerHeight * multiplier}, ${
-        window.outerWidth * multiplier
-      })`,
-    );
-    post(
-      `setResolution(${window.outerHeight * multiplier}, ${
-        window.outerWidth * multiplier
-      })`,
-    );
+    const resolutionString = `setResolution(
+        ${window.outerHeight * multiplier},
+        ${window.outerWidth * multiplier}
+      )`;
+
+    eval(resolutionString);
+    post(resolutionString);
 
     eval(`fps = ${settings.fps}`);
     post(`fps = ${settings.fps}`);
@@ -351,6 +372,8 @@ export const useHydraStore = defineStore("hydra", () => {
     isCut.value = cutting;
   };
 
+  const isCopiedTypeParent = computed(() => copied.value?.position);
+
   const resetCut = () => {
     copiedParent.value = null;
     isCut.value = false;
@@ -360,7 +383,7 @@ export const useHydraStore = defineStore("hydra", () => {
     if (!copied.value) return;
 
     // Parent block is pasted
-    if (copied.value.position) {
+    if (isCopiedTypeParent.value) {
       const pasted = performPaste();
 
       if (pasted && isCut.value) {
@@ -377,26 +400,33 @@ export const useHydraStore = defineStore("hydra", () => {
       const pasted = performPaste();
 
       if (pasted && isCut.value) {
-        deleteChild({
-          element: copied.value,
-          parent: copiedParent.value,
-        });
+        deleteChild(
+          {
+            element: copied.value,
+            parent: copiedParent.value,
+          },
+          isCut.value,
+        );
 
         resetCut();
       }
     }
   };
 
-  const canPasteChild = computed(
-    () =>
-      (focused.value &&
-        focused.value !== copied.value &&
-        focused.value?.type === TYPE_SRC &&
-        (copied.value?.type === TYPE_SIMPLE ||
-          copied.value?.type === TYPE_COMPLEX)) ||
-      (focused.value?.type === TYPE_COMPLEX &&
-        copied.value?.type === TYPE_SRC &&
-        focused.value?.blocks.length < 1),
+  const canPasteChildToTarget = (target) =>
+    (target &&
+      target !== copied.value &&
+      target.type === TYPE_SRC &&
+      (copied.value?.type === TYPE_SIMPLE ||
+        copied.value?.type === TYPE_COMPLEX)) ||
+    (target.type === TYPE_COMPLEX &&
+      copied.value?.type === TYPE_SRC &&
+      target.blocks.length === 0);
+
+  const canPasteChild = computed(() => canPasteChildToTarget(focused.value));
+
+  const canPasteChildToParent = computed(() =>
+    canPasteChildToTarget(focusedParent.value),
   );
 
   const canPasteParent = computed(
@@ -408,19 +438,11 @@ export const useHydraStore = defineStore("hydra", () => {
   const canPaste = computed(() => canPasteChild.value || canPasteParent.value);
 
   const performPaste = () => {
-    if (canPasteChild.value) {
-      addChild(deepCopy(copied.value), !isCut.value);
-      return true;
-    } else if (canPasteParent.value) {
-      addParent(deepCopy(copied.value), !isCut.value);
-      return true;
+    if (focused.value) {
+      return addChild(deepCopy(copied.value), !isCut.value);
+    } else {
+      return addParent(deepCopy(copied.value), !isCut.value);
     }
-
-    showErrorToast(
-      `Can't paste here: pasting ${copied.value.name} into ${focused.value.name}`,
-    );
-
-    return false;
   };
 
   return {
