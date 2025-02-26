@@ -271,6 +271,7 @@ const closeWelcomeModal = () => {
 };
 
 const openAddBlockModal = (parent = null) => {
+  store.setFocus(parent);
   addBlockModalParent.value = parent;
   isAddBlockModalOpen.value = true;
 };
