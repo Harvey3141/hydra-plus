@@ -110,7 +110,10 @@ const paste = (element) => {
     @end="handleEnd"
   >
     <template #item="{ element, index }">
-      <li :class="{ focused: store.focused === element }" @click.stop="">
+      <li
+        :class="[element.type, { focused: store.focused === element }]"
+        @click.stop=""
+      >
         <ContextMenu>
           <ContextMenuTrigger>
             <div class="params">
@@ -175,8 +178,8 @@ const paste = (element) => {
                   :id="generateUniqueId(`${path}.${index}.${paramIndex}`)"
                   v-model="element.params[paramIndex]"
                   class="bg-zinc-900"
-                  @focusin="store.setInputFocus(true)"
-                  @focusout="handleChange"
+                  @focus="store.setInputFocus(true)"
+                  @blur="handleChange"
                 />
               </div>
             </div>
@@ -295,6 +298,10 @@ ul {
 
   li {
     padding: $spacing 0 $spacing $spacing;
+
+    &.simple {
+      padding-bottom: 0;
+    }
 
     &:nth-child(odd) {
       background: #22222210;

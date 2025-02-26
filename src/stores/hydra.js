@@ -159,25 +159,17 @@ export const useHydraStore = defineStore("hydra", () => {
   const setBlocks = ({
     blocks: newBlocks,
     shouldSetHistory = true,
-    isDelete = false,
+    // isDelete = false,
   }) => {
     const newSrcBlocks = newBlocks.filter((block) => block.type === TYPE_SRC);
     const newExternalBlocks = newBlocks.filter((block) =>
       [TYPE_EXTERNAL, TYPE_THREE].includes(block.type),
     );
 
-    // if (
-    //   JSON.stringify(newSrcBlocks) === JSON.stringify(blocks.value) &&
-    //   JSON.stringify(newExternalBlocks) ===
-    //     JSON.stringify(externalSourceBlocks.value)
-    // ) {
-    //   debugger;
-    //   return;
-    // }
-
     blocks.value = newSrcBlocks;
     externalSourceBlocks.value = newExternalBlocks;
-    update({ shouldSetHistory, isDelete });
+    // update({ shouldSetHistory, isDelete });
+    update({ shouldSetHistory });
   };
 
   const setBlockPosition = ({ index, type, position }) => {
@@ -233,9 +225,8 @@ export const useHydraStore = defineStore("hydra", () => {
   };
 
   const update = (
-    { shouldSetHistory, isDelete } = {
+    { shouldSetHistory } = {
       shouldSetHistory: true,
-      isDelete: false,
     },
   ) => {
     const isHuePluginEnabled = false && process.env.NODE_ENV !== "production";
@@ -249,10 +240,7 @@ export const useHydraStore = defineStore("hydra", () => {
       }
 
       for (const [i, block] of externalSourceBlocks.value.entries()) {
-        if (
-          block.type !== TYPE_THREE &&
-          (isDelete || !window.hydra[`s${i}`]?.src)
-        ) {
+        if (block.type !== TYPE_THREE && block.name !== "initScreen") {
           newCodeString += flattenExternal(block, i);
         }
       }
@@ -298,8 +286,6 @@ export const useHydraStore = defineStore("hydra", () => {
   };
 
   const setSynthSettings = (settings) => {
-    if (settings === synthSettings) return;
-
     eval(`bpm = ${settings.bpm}`);
     post(`bpm = ${settings.bpm}`);
     eval(`speed = ${settings.speed}`);

@@ -63,6 +63,9 @@ const hydra = ref(window.hydra);
 const cameraNames = ref([]);
 const isPreviewOpen = ref(false);
 
+const videoRef = ref(null);
+const imageRef = ref(null);
+
 onMounted(async () => {
   if (props.block.name !== "initCam") return;
 
@@ -109,6 +112,27 @@ const deleteParent = () => {
     index: props.index,
   });
 };
+
+const handleVideoError = () => {
+  showErrorToast("Invalid video source detected.");
+
+  if (videoRef.value) {
+    videoRef.value.removeAttribute("src");
+    videoRef.value.load();
+  }
+
+  isPreviewOpen.value = false;
+};
+
+const handleImageError = () => {
+  showErrorToast("Invalid image source detected.");
+
+  if (imageRef.value) {
+    imageRef.value.removeAttribute("src");
+  }
+
+  isPreviewOpen.value = false;
+};
 </script>
 
 <!-- 
@@ -117,15 +141,13 @@ const deleteParent = () => {
   'vue/no-mutating-props' is disabled because the props are not displayed anywhere else in the app.
   The state has to be updated on input change, but the update should be only called when exiting the input focus.
   I consider this applicable in this case.
-
-  @todo: param component
 -->
 
 <template>
   <ContextMenu>
     <ContextMenuTrigger>
       <div
-        :id="`${block.type}-block-${index}`"
+        :id="`${block.type}-${index}`"
         :class="[
           'parent-block',
           block.type,
@@ -166,103 +188,109 @@ const deleteParent = () => {
 
         <div v-if="block.type !== TYPE_THREE">
           <div
-            v-for="(param, paramIndex) in block.params?.length"
+            v-for="(param, paramIndex) in block.params"
             :key="paramIndex"
-            class="param-input-container flex"
+            class="param-container"
           >
-            <Label
-              v-if="showLabel(block.name)"
-              :for="`${block.type}-block-${index}-param-${paramIndex}`"
-              class="min-w-24"
-            >
-              {{ PARAM_MAPPINGS[block.name][paramIndex] }}
-            </Label>
+            <div class="param flex">
+              <Label
+                v-if="showLabel(block.name)"
+                :for="`${block.type}-${index}-${paramIndex}`"
+                class="min-w-24"
+              >
+                {{ PARAM_MAPPINGS[block.name][paramIndex] }}
+              </Label>
 
-            <Select
-              v-if="block.name === 'initCam'"
-              :id="`${block.type}-block-${index}-param-${paramIndex}`"
-              v-model="block.params[paramIndex]"
-              @update:model-value="handleChange"
-            >
-              <SelectTrigger class="bg-zinc-900">
-                <SelectValue>
-                  {{ cameraNames[block.params[paramIndex]] }}
-                </SelectValue>
-              </SelectTrigger>
+              <Select
+                v-if="block.name === 'initCam'"
+                :id="`${block.type}-${index}-${paramIndex}`"
+                v-model="block.params[paramIndex]"
+                @update:model-value="handleChange"
+              >
+                <SelectTrigger class="bg-zinc-900">
+                  <SelectValue>
+                    {{ cameraNames[block.params[paramIndex]] }}
+                  </SelectValue>
+                </SelectTrigger>
 
-              <SelectContent>
-                <SelectItem
-                  v-for="(name, camIndex) in cameraNames"
-                  :key="'cam' + camIndex"
-                  :value="String(camIndex)"
-                >
-                  {{ name }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+                <SelectContent>
+                  <SelectItem
+                    v-for="(name, camIndex) in cameraNames"
+                    :key="'cam' + camIndex"
+                    :value="String(camIndex)"
+                  >
+                    {{ name }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select
-              v-else-if="block.name === 'src'"
-              :id="`${block.type}-block-${index}-param-${paramIndex}`"
-              v-model="block.params[paramIndex]"
-              @update:model-value="handleChange"
-            >
-              <SelectTrigger class="bg-zinc-900">
-                <SelectValue />
-              </SelectTrigger>
+              <Select
+                v-else-if="block.name === 'src'"
+                :id="`${block.type}-${index}-${paramIndex}`"
+                v-model="block.params[paramIndex]"
+                @update:model-value="handleChange"
+              >
+                <SelectTrigger class="bg-zinc-900">
+                  <SelectValue />
+                </SelectTrigger>
 
-              <SelectContent>
-                <SelectItem
-                  v-for="(source, sIndex) in store.externalSourceBlocks"
-                  :key="`s${sIndex}`"
-                  :value="`s${sIndex}`"
-                >
-                  s{{ sIndex }} - {{ source.name }}
-                </SelectItem>
-                <SelectItem
-                  v-for="(output, oIndex) in store.blocks"
-                  :key="`o${oIndex}`"
-                  :value="`o${oIndex}`"
-                >
-                  o{{ oIndex }} - {{ output.name }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+                <SelectContent>
+                  <SelectItem
+                    v-for="(source, sIndex) in store.externalSourceBlocks"
+                    :key="`s${sIndex}`"
+                    :value="`s${sIndex}`"
+                  >
+                    s{{ sIndex }} - {{ source.name }}
+                  </SelectItem>
+                  <SelectItem
+                    v-for="(output, oIndex) in store.blocks"
+                    :key="`o${oIndex}`"
+                    :value="`o${oIndex}`"
+                  >
+                    o{{ oIndex }} - {{ output.name }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Input
-              v-else
-              :id="`${block.type}-block-${index}-param-${paramIndex}`"
-              v-model="block.params[paramIndex]"
-              class="bg-zinc-900 my-0"
-              @focusin="store.setInputFocus(true)"
-              @focusout="() => handleChange()"
-            />
+              <Input
+                v-else
+                :id="`${block.type}-${index}-${paramIndex}`"
+                v-model="block.params[paramIndex]"
+                class="bg-zinc-900 my-0"
+                @focusin="store.setInputFocus(true)"
+                @focusout="handleChange"
+              />
+            </div>
+
+            <div v-if="block.type !== TYPE_SRC" v-show="isPreviewOpen">
+              <img
+                v-if="block.name === 'initImage'"
+                :src="block.params[paramIndex]"
+                @error="handleImageError"
+              />
+
+              <video
+                v-else-if="block.name === 'initVideo'"
+                :src="block.params[paramIndex]"
+                autoplay
+                muted
+                loop
+                @error="handleVideoError"
+              />
+
+              <video
+                v-else-if="
+                  block.name === 'initCam' || block.name === 'initScreen'
+                "
+                :srcObject="hydra[`s${index}`].src?.srcObject"
+                :class="block.name"
+                autoplay
+                muted
+              />
+            </div>
+
+            <!-- @todo 3D preview -->
           </div>
-        </div>
-
-        <div v-if="isPreviewOpen">
-          <img
-            v-if="block.name === 'initImage'"
-            :src="hydra[`s${index}`].src?.src"
-          />
-
-          <video
-            v-else-if="block.name === 'initVideo'"
-            :src="hydra[`s${index}`].src?.src"
-            autoplay
-            muted
-            loop
-          />
-
-          <video
-            v-else-if="block.name === 'initCam' || block.name === 'initScreen'"
-            :srcObject="hydra[`s${index}`].src?.srcObject"
-            :class="block.name"
-            autoplay
-            muted
-          />
-
-          <!-- @todo 3D preview -->
         </div>
 
         <NestedDraggable
@@ -405,14 +433,16 @@ $spacing: 8px;
     }
   }
 
-  .param-input-container {
-    padding: calc($spacing / 4) $spacing;
+  .param-container {
+    .param {
+      padding: calc($spacing / 4) $spacing;
+    }
 
-    &:first-of-type {
+    &:first-of-type .param {
       padding-top: $spacing;
     }
 
-    &:last-of-type {
+    &:last-of-type .param {
       padding-bottom: $spacing;
     }
 
@@ -448,42 +478,42 @@ $spacing: 8px;
       }
     }
 
-    &#source-block-0 {
+    &#source-0 {
       --color: theme(colors.yellow.200);
       @include block-colors();
     }
 
-    &#source-block-1 {
+    &#source-1 {
       --color: theme(colors.green.300);
       @include block-colors();
     }
 
-    &#source-block-2 {
+    &#source-2 {
       --color: theme(colors.blue.300);
       @include block-colors();
     }
 
-    &#source-block-3 {
+    &#source-3 {
       --color: theme(colors.pink.300);
       @include block-colors();
     }
 
-    &#source-block-4 {
+    &#source-4 {
       --color: theme(colors.purple.300);
       @include block-colors();
     }
 
-    &#source-block-5 {
+    &#source-5 {
       --color: theme(colors.orange.300);
       @include block-colors();
     }
 
-    &#source-block-6 {
+    &#source-6 {
       --color: theme(colors.emerald.100);
       @include block-colors();
     }
 
-    &#source-block-7 {
+    &#source-7 {
       --color: theme(colors.indigo.400);
       @include block-colors();
     }

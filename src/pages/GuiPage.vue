@@ -176,7 +176,7 @@ const moveBlock = (e, index, type, position) => {
   let div;
   let positionChanged = false;
 
-  div = document.getElementById(`${type}-block-${index}`);
+  div = document.getElementById(`${type}-${index}`);
 
   if (e) {
     zIndexCount += 1;
