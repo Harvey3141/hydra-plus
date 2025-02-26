@@ -64,13 +64,6 @@ export const useHydraStore = defineStore("hydra", () => {
   const addParent = (source, shouldSetHistory = true) => {
     const copiedSource = deepCopy(source);
 
-    if (!canPasteParent.value) {
-      showErrorToast(
-        `Can't paste here: inserting "${copiedSource.name}" into "${focused.value?.name}".`,
-      );
-      return false;
-    }
-
     if (
       source.type === TYPE_SRC &&
       blocks.value.length >= MAX_NUMBER_OF_SOURCES
@@ -87,6 +80,13 @@ export const useHydraStore = defineStore("hydra", () => {
     ) {
       showErrorToast(
         `You can't add more than ${MAX_NUMBER_OF_EXTERNALS} externals.`,
+      );
+      return false;
+    }
+
+    if (!canPasteParent.value) {
+      showErrorToast(
+        `Can't paste here: inserting "${copiedSource.name}" into "${focused.value?.name}".`,
       );
       return false;
     }
@@ -431,8 +431,8 @@ export const useHydraStore = defineStore("hydra", () => {
 
   const canPasteParent = computed(
     () =>
-      (!focused.value || focused.value === copied.value) &&
-      copied.value?.type === TYPE_SRC,
+      !focused.value ||
+      (focused.value === copied.value && copied.value?.type === TYPE_SRC),
   );
 
   const canPaste = computed(() => canPasteChild.value || canPasteParent.value);
