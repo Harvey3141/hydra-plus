@@ -9,8 +9,8 @@ const emit = defineEmits(["close"]);
 
 const props = defineProps({
   modalName: {
-    required: true,
     type: String,
+    required: true,
   },
 
   blocks: {

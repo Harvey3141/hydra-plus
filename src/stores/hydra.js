@@ -61,7 +61,7 @@ export const useHydraStore = defineStore("hydra", () => {
     isInputFocused.value = isFocused;
   };
 
-  const addParent = (source, shouldSetHistory = true) => {
+  const addParent = (source, shouldSetHistory = true, isPasting = false) => {
     const copiedSource = deepCopy(source);
 
     if (
@@ -84,7 +84,7 @@ export const useHydraStore = defineStore("hydra", () => {
       return false;
     }
 
-    if (!canPasteParent.value) {
+    if (isPasting && !canPasteParent.value) {
       showErrorToast(
         `Can't paste here: inserting "${copiedSource.name}" into "${focused.value?.name}".`,
       );
@@ -130,11 +130,13 @@ export const useHydraStore = defineStore("hydra", () => {
     return true;
   };
 
-  const addChild = (effect, shouldSetHistory = true) => {
-    if (canPasteChild.value) {
+  const addChild = (effect, shouldSetHistory = true, isPasting = false) => {
+    if (!isPasting || canPasteChild.value) {
       focused.value.blocks.push(deepCopy(effect));
-    } else if (canPasteChildToParent.value) {
+    } else if (focusedParent.value && canPasteChildToParent.value) {
       focusedParent.value.blocks.push(deepCopy(effect));
+    } else if (!focusedParent.value) {
+      return addParent(effect, shouldSetHistory, isPasting);
     } else {
       showErrorToast(
         `Can't paste here: inserting "${copied.value.name}" into "${focused.value.name}".`,
@@ -372,8 +374,6 @@ export const useHydraStore = defineStore("hydra", () => {
     isCut.value = cutting;
   };
 
-  const isCopiedTypeParent = computed(() => copied.value?.position);
-
   const resetCut = () => {
     copiedParent.value = null;
     isCut.value = false;
@@ -383,7 +383,7 @@ export const useHydraStore = defineStore("hydra", () => {
     if (!copied.value) return;
 
     // Parent block is pasted
-    if (isCopiedTypeParent.value) {
+    if (copied.value?.position) {
       const pasted = performPaste();
 
       if (pasted && isCut.value) {
@@ -429,19 +429,15 @@ export const useHydraStore = defineStore("hydra", () => {
     canPasteChildToTarget(focusedParent.value),
   );
 
-  const canPasteParent = computed(
-    () =>
-      !focused.value ||
-      (focused.value === copied.value && copied.value?.type === TYPE_SRC),
-  );
+  const canPasteParent = computed(() => copied.value?.type === TYPE_SRC);
 
   const canPaste = computed(() => canPasteChild.value || canPasteParent.value);
 
   const performPaste = () => {
     if (focused.value) {
-      return addChild(deepCopy(copied.value), !isCut.value);
+      return addChild(deepCopy(copied.value), !isCut.value, true);
     } else {
-      return addParent(deepCopy(copied.value), !isCut.value);
+      return addParent(deepCopy(copied.value), !isCut.value, true);
     }
   };
 

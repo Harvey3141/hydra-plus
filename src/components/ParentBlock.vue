@@ -270,6 +270,7 @@ const deleteParent = () => {
           :parent="block"
           :handle-change="() => handleChange()"
           :open-add-block-modal="openAddBlockModal"
+          :path="index.toString()"
         />
       </div>
     </ContextMenuTrigger>

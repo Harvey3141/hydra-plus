@@ -23,12 +23,12 @@ import {
 
 const props = defineProps({
   parent: {
-    required: true,
     type: Object,
+    required: true,
   },
   handleChange: {
-    required: true,
     type: Function,
+    required: true,
   },
   openAddBlockModal: {
     type: Function,
@@ -36,7 +36,7 @@ const props = defineProps({
   },
   path: {
     type: String,
-    default: "",
+    required: true,
   },
 });
 
@@ -109,7 +109,7 @@ const paste = (element) => {
     @move="(e) => handleMove(e)"
     @end="handleEnd"
   >
-    <template #item="{ element }">
+    <template #item="{ element, index }">
       <li :class="{ focused: store.focused === element }" @click.stop="">
         <ContextMenu>
           <ContextMenuTrigger>
@@ -166,17 +166,13 @@ const paste = (element) => {
                 @click.stop="store.setFocus(element, parent)"
               >
                 <Label
-                  :for="
-                    generateUniqueId(`${path}.${element.name}.${paramIndex}`)
-                  "
+                  :for="generateUniqueId(`${path}.${index}.${paramIndex}`)"
                   class="min-w-24"
                 >
                   {{ PARAM_MAPPINGS[element.name][paramIndex] }}
                 </Label>
                 <Input
-                  :id="
-                    generateUniqueId(`${path}.${element.name}.${paramIndex}`)
-                  "
+                  :id="generateUniqueId(`${path}.${index}.${paramIndex}`)"
                   v-model="element.params[paramIndex]"
                   class="bg-zinc-900"
                   @focusin="store.setInputFocus(true)"
