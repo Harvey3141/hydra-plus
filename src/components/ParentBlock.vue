@@ -258,7 +258,7 @@ const handleImageError = () => {
                 v-model="block.params[paramIndex]"
                 class="bg-zinc-900 my-0"
                 @focusin="store.setInputFocus(true)"
-                @focusout="handleChange"
+                @focusout="handleChange()"
               />
             </div>
 

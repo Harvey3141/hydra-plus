@@ -58,6 +58,7 @@ export const useHydraStore = defineStore("hydra", () => {
   };
 
   const setInputFocus = (isFocused) => {
+    console.log("inputFocus", isFocused);
     isInputFocused.value = isFocused;
   };
 
@@ -173,11 +174,24 @@ export const useHydraStore = defineStore("hydra", () => {
   };
 
   const setBlockPosition = ({ index, type, position }) => {
+    let blockPosition;
+
     if (type === TYPE_SRC) {
+      blockPosition = blocks.value[index].position;
       blocks.value[index].position = position;
     } else {
+      blockPosition = externalSourceBlocks.value[index].position;
       externalSourceBlocks.value[index].position = position;
     }
+
+    // If the block hasn't moved, don't set history
+    if (
+      Math.abs(blockPosition.x - position.x) < 50 ||
+      Math.abs(blockPosition.y - position.y) < 50
+    ) {
+      return;
+    }
+
     setHistory();
   };
 
@@ -311,13 +325,15 @@ export const useHydraStore = defineStore("hydra", () => {
     if (synthSettings.output === output) return;
 
     synthSettings.output = output;
-    update();
+    update({ shouldSetHistory: false });
   };
 
   // History
 
   const setHistory = () => {
     if (history.value.length > 99) history.value.pop();
+
+    console.log(history.value);
 
     history.value.splice(0, historyIndex.value);
     history.value.unshift(
