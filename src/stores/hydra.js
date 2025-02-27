@@ -333,8 +333,6 @@ export const useHydraStore = defineStore("hydra", () => {
   const setHistory = () => {
     if (history.value.length > 99) history.value.pop();
 
-    console.log(history.value);
-
     history.value.splice(0, historyIndex.value);
     history.value.unshift(
       deepCopy({
@@ -344,6 +342,8 @@ export const useHydraStore = defineStore("hydra", () => {
     );
 
     historyIndex.value = 0;
+
+    // console.log(history.value[historyIndex.value]?.blocks);
   };
 
   /**
@@ -363,6 +363,8 @@ export const useHydraStore = defineStore("hydra", () => {
       ]),
       shouldSetHistory: false,
     });
+
+    // console.log(history.value[historyIndex.value]?.blocks);
   };
 
   // Copy & paste

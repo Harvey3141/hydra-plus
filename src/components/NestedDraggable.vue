@@ -178,8 +178,8 @@ const paste = (element) => {
                   :id="generateUniqueId(`${path}.${index}.${paramIndex}`)"
                   v-model="element.params[paramIndex]"
                   class="bg-zinc-900"
-                  @focus="store.setInputFocus(true)"
-                  @blur="handleChange"
+                  @focusin="store.setInputFocus(true)"
+                  @focusout="handleChange()"
                 />
               </div>
             </div>

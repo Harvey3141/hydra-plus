@@ -131,16 +131,16 @@ onMounted(() => {
 
   store.setBlocks({ blocks });
 
-  prevBlocks.value = [
-    ...deepCopy(store.blocks),
-    ...deepCopy(store.externalSourceBlocks),
-  ];
-
   document.addEventListener("keydown", onKeyDown);
 });
 
 onUpdated(() => {
   moveAllBlocks();
+
+  prevBlocks.value = [
+    ...deepCopy(store.blocks),
+    ...deepCopy(store.externalSourceBlocks),
+  ];
 });
 
 const toggleFullscreen = () => (areBlocksHidden.value = !areBlocksHidden.value);
@@ -234,6 +234,7 @@ const moveBlock = (e, index, type, position) => {
 
     document.removeEventListener("touchmove", move);
     document.removeEventListener("touchend", up);
+
     if (positionChanged) {
       store.setBlockPosition({
         index,

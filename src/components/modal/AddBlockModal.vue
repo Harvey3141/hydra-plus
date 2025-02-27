@@ -71,7 +71,7 @@ const modalName = computed(() =>
   isAddSource.value ? "AddSourceModal" : "AddEffectModal",
 );
 
-const functionsBlocks = computed(() => {
+const functionBlocks = computed(() => {
   if (isAddSource.value) {
     if (!props.parent)
       return [
@@ -111,7 +111,7 @@ const handleAddBlock = (parentType, fn) => {
 <template>
   <BaseModal :modal-name="modalName" @close="close">
     <div
-      v-for="functionBlock in functionsBlocks"
+      v-for="functionBlock in functionBlocks"
       :key="functionBlock.name"
       :class="isAddSource ? 'item' : 'group'"
       @click="handleAddBlock(TYPE_COMPLEX, functionBlock)"

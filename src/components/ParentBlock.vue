@@ -296,7 +296,7 @@ const handleImageError = () => {
         <NestedDraggable
           v-if="block.blocks"
           :parent="block"
-          :handle-change="() => handleChange()"
+          :handle-change="handleChange"
           :open-add-block-modal="openAddBlockModal"
           :path="index.toString()"
         />
