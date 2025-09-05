@@ -88,7 +88,6 @@ onMounted(() => {
 .modal-container {
   position: fixed;
   z-index: 1001;
-  top: -20px;
   left: 0;
   display: flex;
   width: 100vw;
