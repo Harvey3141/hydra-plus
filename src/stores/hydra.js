@@ -142,7 +142,7 @@ export const useHydraStore = defineStore("hydra", () => {
         copiedSource,
         externalSourceBlocks.value.length - 1,
       );
-      eval(addedExternal);
+      window.eval(addedExternal);
       post(addedExternal);
     } else {
       setBlocks({
@@ -322,13 +322,13 @@ export const useHydraStore = defineStore("hydra", () => {
         newCodeString += `.out(o${i})\n`;
       }
 
-      newCodeString += `window.hydra.render(o${synthSettings.output})`;
+      newCodeString += `render(o${synthSettings.output})`;
     }
 
     document.getElementById("hydra-canvas");
 
     try {
-      eval(newCodeString);
+      window.eval(newCodeString);
       codeString.value = newCodeString;
     } catch (error) {
       showErrorToast(error);
@@ -352,21 +352,20 @@ export const useHydraStore = defineStore("hydra", () => {
   };
 
   const setSynthSettings = (settings) => {
-    eval(`bpm = ${settings.bpm}`);
+    window.eval(`bpm = ${settings.bpm}`);
     post(`bpm = ${settings.bpm}`);
-    eval(`speed = ${settings.speed}`);
+    window.eval(`speed = ${settings.speed}`);
     post(`speed = ${settings.speed}`);
 
     const multiplier = (settings.resolution * window.devicePixelRatio) / 100;
-    const resolutionString = `setResolution(
-        ${window.outerHeight * multiplier},
-        ${window.outerWidth * multiplier}
-      )`;
+    const width = window.outerWidth * multiplier;
+    const height = window.outerHeight * multiplier;
+    const resolutionString = `setResolution(${height}, ${width})`;
 
-    eval(resolutionString);
+    window.eval(resolutionString);
     post(resolutionString);
 
-    eval(`fps = ${settings.fps}`);
+    window.eval(`fps = ${settings.fps}`);
     post(`fps = ${settings.fps}`);
 
     Object.assign(synthSettings, settings);

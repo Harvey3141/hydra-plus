@@ -7,7 +7,7 @@ import { useBroadcastChannel } from "@vueuse/core";
 const { data } = useBroadcastChannel({ name: "hydra-plus-channel" });
 
 watch(data, () => {
-  if (data.value) eval(data.value);
+  if (data.value) window.eval(data.value);
 });
 
 // onMounted(() => {

@@ -60,7 +60,7 @@ const blockHeader = computed(() => {
 
 const isActive = computed(() => store.synthSettings.output === props.index);
 
-const hydra = ref(window.hydra);
+const hydra = ref(null);
 const cameraNames = ref([]);
 const collapsed = ref(false);
 
@@ -68,6 +68,10 @@ const videoRef = ref(null);
 const imageRef = ref(null);
 
 onMounted(async () => {
+  if (window.hydra) {
+    hydra.value = window.hydra;
+  }
+
   if (props.block.name !== "initCam") return;
 
   try {

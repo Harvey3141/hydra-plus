@@ -12,13 +12,15 @@ const height = ref(window.innerHeight * window.devicePixelRatio);
 const width = ref(window.innerWidth * window.devicePixelRatio);
 
 onMounted(() => {
-  window.hydra = new Hydra({
+  const hydraInstance = new Hydra({
     numSources: MAX_NUMBER_OF_EXTERNALS,
     numOutputs: MAX_NUMBER_OF_SOURCES,
     height: height.value,
     width: width.value,
     canvas: document.getElementById("hydra-canvas"),
-  }).synth;
+  });
+
+  window.hydra = hydraInstance.synth;
 
   const areAnimationsEnabled = getSafeLocalStorage("animationsEnabled");
 
