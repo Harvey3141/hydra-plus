@@ -5,13 +5,7 @@ import { useHydraStore } from "@/stores/hydra";
 import { getSafeLocalStorage, setSafeLocalStorage } from "@/utils";
 import { deepCopy } from "@/utils/object-utils";
 
-import {
-  CURRENT_VERSION,
-  INITIAL_BLOCKS,
-  MAX_NUMBER_OF_EXTERNALS,
-  MAX_NUMBER_OF_SOURCES,
-  TYPE_SRC,
-} from "@/constants";
+import { CURRENT_VERSION, INITIAL_BLOCKS, TYPE_SRC } from "@/constants";
 
 import NavigationPanel from "@/components/NavigationPanel";
 import ParentBlock from "@/components/ParentBlock";
@@ -106,6 +100,7 @@ onMounted(() => {
   // load stuff from local storage
   // @todo extract this mess from here
   const blocks = [];
+  const externalBlocks = [];
 
   if (getSafeLocalStorage("blocks")) {
     blocks.push(...getSafeLocalStorage("blocks"));
@@ -114,8 +109,15 @@ onMounted(() => {
   }
 
   if (getSafeLocalStorage("externalSourceBlocks")) {
-    blocks.push(...getSafeLocalStorage("externalSourceBlocks"));
+    externalBlocks.push(...getSafeLocalStorage("externalSourceBlocks"));
   }
+
+  // Ensure all blocks have a z-index property
+  [...blocks, ...externalBlocks].forEach((block, index) => {
+    if (!block.zIndex) {
+      block.zIndex = index + 1;
+    }
+  });
 
   if (window.outerHeight && window.outerWidth) {
     if (getSafeLocalStorage("synthSettings")) {
@@ -129,7 +131,7 @@ onMounted(() => {
     }
   }
 
-  store.setBlocks({ blocks });
+  store.setBlocks({ blocks: [...blocks, ...externalBlocks] });
 
   document.addEventListener("keydown", onKeyDown);
 });
@@ -149,27 +151,20 @@ const moveAllBlocks = () => {
   // move source blocks to their positions
   store.blocks.forEach((block, index) => {
     moveBlock(null, index, block.type, block.position);
+    // Also set z-index when positioning
+    const div = document.getElementById(`${block.type}-${index}`);
+    if (div && block.zIndex) {
+      div.style.zIndex = block.zIndex;
+    }
   });
   store.externalSourceBlocks.forEach((block, index) => {
     moveBlock(null, index, block.type, block.position);
+    // Also set z-index when positioning
+    const div = document.getElementById(`${block.type}-${index}`);
+    if (div && block.zIndex) {
+      div.style.zIndex = block.zIndex;
+    }
   });
-};
-
-let zIndexCount = 1;
-const zIndexMax = MAX_NUMBER_OF_EXTERNALS + MAX_NUMBER_OF_SOURCES;
-
-const resetZIndexes = () => {
-  let parents = [...document.querySelectorAll(".parent-block")];
-
-  parents.sort(
-    (a, b) => (parseInt(a.style.zIndex) || 0) - (parseInt(b.style.zIndex) || 0),
-  );
-
-  parents.forEach((box, index) => {
-    box.style.zIndex = index + 1;
-  });
-
-  zIndexCount = parents.length + 1;
 };
 
 const moveBlock = (e, index, type, position) => {
@@ -179,11 +174,16 @@ const moveBlock = (e, index, type, position) => {
   div = document.getElementById(`${type}-${index}`);
 
   if (e) {
-    zIndexCount += 1;
-    div.style.zIndex = zIndexCount;
-    if (zIndexCount >= zIndexMax) {
-      resetZIndexes();
-    }
+    // Calculate the highest z-index among all blocks
+    const allBlocks = [...store.blocks, ...store.externalSourceBlocks];
+    const maxZIndex = Math.max(
+      0,
+      ...allBlocks.map((block) => block.zIndex || 0),
+    );
+    const newZIndex = maxZIndex + 1;
+
+    div.style.zIndex = newZIndex;
+    store.setBlockZIndex({ index, type, zIndex: newZIndex });
 
     if (type === TYPE_SRC) {
       store.setFocus(store.blocks[index]);

@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/number-field";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import Switch from "../ui/switch/Switch.vue";
+import { Switch } from "@/components/ui/switch";
 
 const store = useHydraStore();
 const appStore = useAppStore();

@@ -92,6 +92,13 @@ export const useHydraStore = defineStore("hydra", () => {
       return false;
     }
 
+    // Calculate the highest z-index among all blocks for the new block
+    const allBlocks = [...blocks.value, ...externalSourceBlocks.value];
+    const maxZIndex = Math.max(
+      0,
+      ...allBlocks.map((block) => block.zIndex || 0),
+    );
+
     const newBlock = {
       ...copiedSource,
       position: window.contextMenuPosition
@@ -100,6 +107,7 @@ export const useHydraStore = defineStore("hydra", () => {
             y: window.contextMenuPosition.y - 20,
           }
         : DEFAULT_POSITION,
+      zIndex: maxZIndex + 1,
     };
 
     window.contextMenuPosition = null;
@@ -193,6 +201,14 @@ export const useHydraStore = defineStore("hydra", () => {
     }
 
     setHistory();
+  };
+
+  const setBlockZIndex = ({ index, type, zIndex }) => {
+    if (type === TYPE_SRC) {
+      blocks.value[index].zIndex = zIndex;
+    } else {
+      externalSourceBlocks.value[index].zIndex = zIndex;
+    }
   };
 
   const deleteParent = ({ type, index }) => {
@@ -471,6 +487,7 @@ export const useHydraStore = defineStore("hydra", () => {
     addChild,
     setBlocks,
     setBlockPosition,
+    setBlockZIndex,
     deleteParent,
     deleteChild,
     update,

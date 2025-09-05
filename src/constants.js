@@ -53,9 +53,8 @@ export const INITIAL_BLOCKS = [
   },
 ];
 
-// if the 2 combined is greater than 100, change the constant z-index values in the css
-export const MAX_NUMBER_OF_SOURCES = 8;
-export const MAX_NUMBER_OF_EXTERNALS = 8;
+export const MAX_NUMBER_OF_SOURCES = 16;
+export const MAX_NUMBER_OF_EXTERNALS = 16;
 
 export const TYPE_SRC = "source";
 export const TYPE_EXTERNAL = "external";

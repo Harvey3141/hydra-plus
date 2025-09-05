@@ -195,7 +195,7 @@ const goFullscreen = () => {
 <style lang="scss" scoped>
 .navigation {
   position: fixed;
-  z-index: 100;
+  z-index: 1000;
   display: flex;
   width: 100%;
   padding: 6px;
