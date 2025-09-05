@@ -12,19 +12,24 @@ const showLatestUpdates = computed(
 <template>
   <BaseModal modal-name="WelcomeModal">
     <div v-if="showLatestUpdates">
-      <h1>welcome to version 0.9!</h1>
+      <h1 class="mb-5">welcome to version 0.9.2!</h1>
+
+      <h2 class="mb-3">~ Introducing Scenes!</h2>
+
       <p>
-        This version may not seem like a big improvement, but it lays down some
-        foundational work for where the project is heading.
+        You can now save your scenes and switch between them. This will make it
+        easier to manage your projects.
       </p>
-      <p>There are a couple things though that are noticably new:</p>
-      <ul>
-        <li>new toolbar</li>
-        <li>copy, cut, and paste with either the toolbar, or with shortcuts</li>
-        <li>context menu for ease of use: right click on any of the blocks</li>
-        <li>export your hydra code to a file from the settings modal</li>
-        <li>+ also some design and functionality improvements</li>
-      </ul>
+      <p>
+        You can also <strong>collapse blocks</strong> by clicking on the
+        <i>"arrow"</i>
+        icon on top of your source blocks.
+      </p>
+      <p>
+        I tried to fix some bugs I was aware of, please let me know if you find
+        any issues. Other features are on the way, keep an eye out for more
+        updates! ~
+      </p>
       <hr />
     </div>
 
@@ -44,9 +49,10 @@ const showLatestUpdates = computed(
 
     <p>
       Thank you for using hydra+, your feedback, shared via
-      <a href="https://github.com/dahegyi/hydra-plus" target="_blank">Github</a>
-      or <a href="https://discord.gg/CuEQbm8K" target="_blank">Discord</a> is
-      highly appreciated. Also, I'll try to answer any questions you might have.
+      <a href="https://github.com/dahegyi/hydra-plus/issues" target="_blank">
+        Github
+      </a>
+      is highly appreciated. I'll try to answer any questions you might have.
     </p>
 
     <br />

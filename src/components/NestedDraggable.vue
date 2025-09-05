@@ -23,12 +23,12 @@ import {
 
 const props = defineProps({
   parent: {
-    required: true,
     type: Object,
+    required: true,
   },
   handleChange: {
-    required: true,
     type: Function,
+    required: true,
   },
   openAddBlockModal: {
     type: Function,
@@ -36,7 +36,7 @@ const props = defineProps({
   },
   path: {
     type: String,
-    default: "",
+    required: true,
   },
 });
 
@@ -104,13 +104,21 @@ const paste = (element) => {
     :list="parent.blocks"
     :group="{ name: 'g1' }"
     :animation="200"
-    item-key="name"
+    :item-key="
+      (element, index) =>
+        `${element.name}-${index}-${element.type}-${
+          element.params?.join('-') || 'no-params'
+        }`
+    "
     @click.stop="handleAddBlockModal(parent)"
     @move="(e) => handleMove(e)"
     @end="handleEnd"
   >
-    <template #item="{ element }">
-      <li :class="{ focused: store.focused === element }" @click.stop="">
+    <template #item="{ element, index }">
+      <li
+        :class="[element.type, { focused: store.focused === element }]"
+        @click.stop=""
+      >
         <ContextMenu>
           <ContextMenuTrigger>
             <div class="params">
@@ -166,21 +174,17 @@ const paste = (element) => {
                 @click.stop="store.setFocus(element, parent)"
               >
                 <Label
-                  :for="
-                    generateUniqueId(`${path}.${element.name}.${paramIndex}`)
-                  "
+                  :for="generateUniqueId(`${path}.${index}.${paramIndex}`)"
                   class="min-w-24"
                 >
                   {{ PARAM_MAPPINGS[element.name][paramIndex] }}
                 </Label>
                 <Input
-                  :id="
-                    generateUniqueId(`${path}.${element.name}.${paramIndex}`)
-                  "
+                  :id="generateUniqueId(`${path}.${index}.${paramIndex}`)"
                   v-model="element.params[paramIndex]"
                   class="bg-zinc-900"
                   @focusin="store.setInputFocus(true)"
-                  @focusout="handleChange"
+                  @focusout="handleChange()"
                 />
               </div>
             </div>
@@ -299,6 +303,10 @@ ul {
 
   li {
     padding: $spacing 0 $spacing $spacing;
+
+    &.simple {
+      padding-bottom: 0;
+    }
 
     &:nth-child(odd) {
       background: #22222210;

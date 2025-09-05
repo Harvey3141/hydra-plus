@@ -1,19 +1,16 @@
 <script setup>
-import { defineAsyncComponent, onMounted, onUpdated, ref, computed } from "vue";
+import { onMounted, onUpdated, ref, computed } from "vue";
 import { useHydraStore } from "@/stores/hydra";
+import { useModalStore } from "@/stores/modal";
 
 import { getSafeLocalStorage, setSafeLocalStorage } from "@/utils";
 import { deepCopy } from "@/utils/object-utils";
 
-import {
-  CURRENT_VERSION,
-  INITIAL_BLOCKS,
-  MAX_NUMBER_OF_EXTERNALS,
-  MAX_NUMBER_OF_SOURCES,
-} from "@/constants";
+import { CURRENT_VERSION, INITIAL_BLOCKS, TYPE_SRC } from "@/constants";
 
 import NavigationPanel from "@/components/NavigationPanel";
 import ParentBlock from "@/components/ParentBlock";
+import ModalRenderer from "@/components/ModalRenderer";
 
 import Toaster from "@/components/ui/toast/Toaster";
 import {
@@ -23,44 +20,19 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuShortcut,
-  // ContextMenuSub,
-  // ContextMenuSubContent,
-  // ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 
 const store = useHydraStore();
-
-const WelcomeModal = defineAsyncComponent(() =>
-  import("@/components/modal/WelcomeModal"),
-);
-const AddBlockModal = defineAsyncComponent(() =>
-  import("@/components/modal/AddBlockModal"),
-);
-const ThreeModal = defineAsyncComponent(() =>
-  import("@/components/modal/ThreeModal"),
-);
-const SettingsModal = defineAsyncComponent(() =>
-  import("@/components/modal/SettingsModal"),
-);
+const modalStore = useModalStore();
 
 const prevBlocks = ref(null);
 const movedBlockCoordinates = ref({ x: 0, y: 0 });
 const areBlocksHidden = ref(false);
 const addBlockModalParent = ref(null);
-const isWelcomeModalOpen = ref(false);
-const isAddBlockModalOpen = ref(false);
-const isThreeModalOpen = ref(false);
-const isSettingsModalOpen = ref(false);
 
-const isAnyModalOpen = computed(() => {
-  return (
-    isWelcomeModalOpen.value ||
-    isAddBlockModalOpen.value ||
-    isThreeModalOpen.value ||
-    isSettingsModalOpen.value
-  );
-});
+// Use modal store's computed property
+const isAnyModalOpen = computed(() => modalStore.isAnyModalOpen);
 
 // set up keyboard shortcuts
 const onKeyDown = (e) => {
@@ -99,47 +71,65 @@ onMounted(() => {
     !getSafeLocalStorage("welcomeModalLastUpdate") ||
     getSafeLocalStorage("welcomeModalLastUpdate") < CURRENT_VERSION
   ) {
-    isWelcomeModalOpen.value = true;
+    modalStore.openModal("welcome");
   }
 
-  // load stuff from local storage
-  // @todo extract this mess from here
-  const blocks = [];
+  // Initialize scenes (this will convert legacy data if needed)
+  store.initializeScenes();
 
-  if (getSafeLocalStorage("blocks")) {
-    blocks.push(...getSafeLocalStorage("blocks"));
+  // Load current scene data
+  const currentScene = store.currentScene;
+  if (currentScene) {
+    const sceneData = {
+      blocks: currentScene.blocks || [],
+      externalSourceBlocks: currentScene.externalSourceBlocks || [],
+      synthSettings: currentScene.synthSettings,
+    };
+
+    // Ensure all blocks have a z-index and colorId property
+    [...sceneData.blocks, ...sceneData.externalSourceBlocks].forEach(
+      (block, index) => {
+        if (!block.zIndex) {
+          block.zIndex = index + 1;
+        }
+        if (!block.colorId) {
+          block.colorId = index;
+        }
+      },
+    );
+
+    store.loadSceneData(sceneData);
   } else {
-    blocks.push(...INITIAL_BLOCKS);
+    // Fallback to initial blocks if no scene is available
+    const sceneData = {
+      blocks: INITIAL_BLOCKS,
+      externalSourceBlocks: [],
+      synthSettings: null,
+    };
+
+    // Ensure all blocks have a z-index and colorId property
+    sceneData.blocks.forEach((block, index) => {
+      if (!block.zIndex) {
+        block.zIndex = index + 1;
+      }
+      if (!block.colorId) {
+        block.colorId = index;
+      }
+    });
+
+    store.loadSceneData(sceneData);
   }
-
-  if (getSafeLocalStorage("externalSourceBlocks")) {
-    blocks.push(...getSafeLocalStorage("externalSourceBlocks"));
-  }
-
-  if (window.outerHeight && window.outerWidth) {
-    if (getSafeLocalStorage("synthSettings")) {
-      store.setSynthSettings(getSafeLocalStorage("synthSettings"));
-    } else {
-      eval(
-        `setResolution(${window.outerHeight * window.devicePixelRatio}, ${
-          window.outerWidth * window.devicePixelRatio
-        })`,
-      );
-    }
-  }
-
-  store.setBlocks({ blocks });
-
-  prevBlocks.value = [
-    ...deepCopy(store.blocks),
-    ...deepCopy(store.externalSourceBlocks),
-  ];
 
   document.addEventListener("keydown", onKeyDown);
 });
 
 onUpdated(() => {
   moveAllBlocks();
+
+  prevBlocks.value = [
+    ...deepCopy(store.blocks),
+    ...deepCopy(store.externalSourceBlocks),
+  ];
 });
 
 const toggleFullscreen = () => (areBlocksHidden.value = !areBlocksHidden.value);
@@ -148,43 +138,41 @@ const moveAllBlocks = () => {
   // move source blocks to their positions
   store.blocks.forEach((block, index) => {
     moveBlock(null, index, block.type, block.position);
+    // Also set z-index when positioning
+    const div = document.getElementById(`${block.type}-${index}`);
+    if (div && block.zIndex) {
+      div.style.zIndex = block.zIndex;
+    }
   });
   store.externalSourceBlocks.forEach((block, index) => {
     moveBlock(null, index, block.type, block.position);
+    // Also set z-index when positioning
+    const div = document.getElementById(`${block.type}-${index}`);
+    if (div && block.zIndex) {
+      div.style.zIndex = block.zIndex;
+    }
   });
-};
-
-let zIndexCount = 1;
-const zIndexMax = MAX_NUMBER_OF_EXTERNALS + MAX_NUMBER_OF_SOURCES;
-
-const resetZIndexes = () => {
-  let parents = [...document.querySelectorAll(".parent-block")];
-
-  parents.sort(
-    (a, b) => (parseInt(a.style.zIndex) || 0) - (parseInt(b.style.zIndex) || 0),
-  );
-
-  parents.forEach((box, index) => {
-    box.style.zIndex = index + 1;
-  });
-
-  zIndexCount = parents.length + 1;
 };
 
 const moveBlock = (e, index, type, position) => {
   let div;
   let positionChanged = false;
 
-  div = document.getElementById(`${type}-block-${index}`);
+  div = document.getElementById(`${type}-${index}`);
 
   if (e) {
-    zIndexCount += 1;
-    div.style.zIndex = zIndexCount;
-    if (zIndexCount >= zIndexMax) {
-      resetZIndexes();
-    }
+    // Calculate the highest z-index among all blocks
+    const allBlocks = [...store.blocks, ...store.externalSourceBlocks];
+    const maxZIndex = Math.max(
+      0,
+      ...allBlocks.map((block) => block.zIndex || 0),
+    );
+    const newZIndex = maxZIndex + 1;
 
-    if (type === "source") {
+    div.style.zIndex = newZIndex;
+    store.setBlockZIndex({ index, type, zIndex: newZIndex });
+
+    if (type === TYPE_SRC) {
       store.setFocus(store.blocks[index]);
     }
   }
@@ -233,6 +221,7 @@ const moveBlock = (e, index, type, position) => {
 
     document.removeEventListener("touchmove", move);
     document.removeEventListener("touchend", up);
+
     if (positionChanged) {
       store.setBlockPosition({
         index,
@@ -257,59 +246,84 @@ const handleChange = (isEnterKey = false) => {
   prevBlocks.value = deepCopy(newBlocks);
 };
 
-const canPasteOnPlayground = computed(() => store.copied?.type === "source");
+const canPasteOnPlayground = computed(() => store.copied?.type === TYPE_SRC);
 
 const pasteOnPlayground = () => {
   store.setFocus(null);
   store.pasteBlock();
 };
 
-const closeWelcomeModal = () => {
-  isWelcomeModalOpen.value = false;
+const openAddBlockModal = (parent = null) => {
+  store.setFocus(parent);
+  addBlockModalParent.value = parent;
+  modalStore.openModal("addBlock", { parent });
+};
+
+const handleWelcomeModalClose = () => {
+  modalStore.closeModal("welcome");
   setSafeLocalStorage("welcomeModalLastUpdate", CURRENT_VERSION);
 };
 
-const openAddBlockModal = (parent = null) => {
-  addBlockModalParent.value = parent;
-  isAddBlockModalOpen.value = true;
-};
+const switchToScene = (sceneId) => {
+  // Save current scene data before switching
+  store.updateCurrentScene({
+    blocks: [...store.blocks],
+    externalSourceBlocks: [...store.externalSourceBlocks],
+    synthSettings: { ...store.synthSettings },
+  });
 
-const closeAddBlockModal = () => {
-  isAddBlockModalOpen.value = false;
-};
+  const scene = store.switchToScene(sceneId);
+  if (scene) {
+    // Load scene data using the store method
+    const sceneData = {
+      blocks: scene.blocks || [],
+      externalSourceBlocks: scene.externalSourceBlocks || [],
+      synthSettings: scene.synthSettings,
+    };
 
-const openThreeModal = () => {
-  isThreeModalOpen.value = true;
-};
+    // Ensure all blocks have a z-index and colorId property
+    [...sceneData.blocks, ...sceneData.externalSourceBlocks].forEach(
+      (block, index) => {
+        if (!block.zIndex) {
+          block.zIndex = index + 1;
+        }
+        if (!block.colorId) {
+          block.colorId = index;
+        }
+      },
+    );
 
-const closeThreeModal = () => {
-  isThreeModalOpen.value = false;
-};
-
-const openSettingsModal = () => {
-  isSettingsModalOpen.value = true;
-};
-
-const closeSettingsModal = () => {
-  isSettingsModalOpen.value = false;
+    store.loadSceneData(sceneData);
+  }
 };
 </script>
 
 <template>
   <Transition name="modal">
     <div v-if="isAnyModalOpen">
-      <WelcomeModal v-if="isWelcomeModalOpen" @close="closeWelcomeModal" />
-      <AddBlockModal
-        v-if="isAddBlockModalOpen"
-        :parent="addBlockModalParent"
-        @close="closeAddBlockModal"
+      <ModalRenderer
+        v-if="modalStore.getModalState('welcome')"
+        modal-name="welcome"
+        @close="handleWelcomeModalClose"
       />
-      <ThreeModal
-        v-if="isThreeModalOpen"
-        :blocks="store.externalSourceBlocks"
-        @close="closeThreeModal"
+      <ModalRenderer
+        v-if="modalStore.getModalState('three')"
+        modal-name="three"
       />
-      <SettingsModal v-if="isSettingsModalOpen" @close="closeSettingsModal" />
+      <ModalRenderer
+        v-if="modalStore.getModalState('settings')"
+        modal-name="settings"
+      />
+      <ModalRenderer
+        v-if="modalStore.getModalState('renameScene')"
+        modal-name="renameScene"
+      />
+
+      <!-- AddBlock modal needs special parent handling, so keep it separate -->
+      <ModalRenderer
+        v-if="modalStore.getModalState('addBlock')"
+        modal-name="addBlock"
+      />
     </div>
   </Transition>
 
@@ -338,9 +352,8 @@ const closeSettingsModal = () => {
     <NavigationPanel
       v-show="!areBlocksHidden"
       @open-add-block-modal="openAddBlockModal"
-      @open-three-modal="openThreeModal"
-      @open-settings-modal="openSettingsModal"
       @toggle-fullscreen="toggleFullscreen"
+      @switch-to-scene="switchToScene"
     />
   </Transition>
 

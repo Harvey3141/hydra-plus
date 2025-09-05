@@ -1,4 +1,6 @@
 import { TYPE_SRC, TYPE_COMPLEX, PARAM_MAPPINGS } from "@/constants";
+import beautify from "js-beautify";
+import moment from "moment";
 
 export const deepCopy = (obj) => {
   return JSON.parse(JSON.stringify(obj));
@@ -85,4 +87,24 @@ export const flatten = (obj) => {
   }
 
   return source;
+};
+
+export const downloadBeautifiedCode = (codeString) => {
+  const beautifiedCode = beautify.js(codeString, {
+    indent_size: 2,
+    space_in_empty_paren: true,
+    preserve_newlines: true,
+    max_preserve_newlines: 2,
+    keep_array_indentation: true,
+    break_chained_methods: true,
+  });
+
+  const blob = new Blob([beautifiedCode], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const formattedDatetime = moment().format("YYYY-MM-DD__HH-mm-ss");
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `hydra-plus-export-${formattedDatetime}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
 };

@@ -10,11 +10,13 @@ export function cn(...inputs) {
 }
 
 const safeKeys = [
-  "blocks",
-  "externalSourceBlocks",
+  "blocks", // can remove later
+  "externalSourceBlocks", // can remove later
   "synthSettings",
   "welcomeModalLastUpdate",
   "animationsEnabled",
+  "scenes",
+  "currentSceneId",
 ];
 
 export const getSafeLocalStorage = (key) => {
@@ -47,6 +49,7 @@ export const showErrorToast = (error) => {
   toast({
     title: "Error",
     description: error,
+    variant: "destructive",
   });
 };
 

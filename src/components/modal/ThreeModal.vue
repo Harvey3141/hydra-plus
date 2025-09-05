@@ -8,8 +8,8 @@ const emit = defineEmits(["close"]);
 
 defineProps({
   blocks: {
-    required: true,
     type: Object,
+    required: true,
   },
 });
 

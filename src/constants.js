@@ -1,4 +1,4 @@
-export const CURRENT_VERSION = "0.9.0";
+export const CURRENT_VERSION = "0.9.2";
 
 export const MODIFIER_KEY = /Macintosh|Mac OS X/i.test(navigator.userAgent)
   ? "⌘"
@@ -50,10 +50,10 @@ export const INITIAL_BLOCKS = [
       },
     ],
     position: DEFAULT_POSITION,
+    colorId: 0,
   },
 ];
 
-// if the 2 combined is greater than 100, change the constant z-index values in the css
 export const MAX_NUMBER_OF_SOURCES = 8;
 export const MAX_NUMBER_OF_EXTERNALS = 8;
 
