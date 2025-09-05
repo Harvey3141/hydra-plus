@@ -104,7 +104,12 @@ const paste = (element) => {
     :list="parent.blocks"
     :group="{ name: 'g1' }"
     :animation="200"
-    item-key="name"
+    :item-key="
+      (element, index) =>
+        `${element.name}-${index}-${element.type}-${
+          element.params?.join('-') || 'no-params'
+        }`
+    "
     @click.stop="handleAddBlockModal(parent)"
     @move="(e) => handleMove(e)"
     @end="handleEnd"
