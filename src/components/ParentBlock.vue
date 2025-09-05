@@ -151,6 +151,7 @@ const handleImageError = () => {
         :class="[
           'parent-block',
           block.type,
+          `color-${block.colorId % 8}`,
           { focused: store.focused === block },
         ]"
       >
@@ -478,42 +479,42 @@ $spacing: 8px;
       }
     }
 
-    &#source-0 {
+    &.color-0 {
       --color: theme(colors.yellow.200);
       @include block-colors();
     }
 
-    &#source-1 {
+    &.color-1 {
       --color: theme(colors.green.300);
       @include block-colors();
     }
 
-    &#source-2 {
+    &.color-2 {
       --color: theme(colors.blue.300);
       @include block-colors();
     }
 
-    &#source-3 {
+    &.color-3 {
       --color: theme(colors.pink.300);
       @include block-colors();
     }
 
-    &#source-4 {
+    &.color-4 {
       --color: theme(colors.purple.300);
       @include block-colors();
     }
 
-    &#source-5 {
+    &.color-5 {
       --color: theme(colors.orange.300);
       @include block-colors();
     }
 
-    &#source-6 {
+    &.color-6 {
       --color: theme(colors.emerald.100);
       @include block-colors();
     }
 
-    &#source-7 {
+    &.color-7 {
       --color: theme(colors.indigo.400);
       @include block-colors();
     }

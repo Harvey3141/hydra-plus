@@ -99,6 +99,11 @@ export const useHydraStore = defineStore("hydra", () => {
       ...allBlocks.map((block) => block.zIndex || 0),
     );
 
+    // Assign a rotating color ID based on existing blocks
+    const existingColorIds = allBlocks.map((block) => block.colorId || 0);
+    const maxColorId = Math.max(0, ...existingColorIds);
+    const nextColorId = maxColorId + 1;
+
     const newBlock = {
       ...copiedSource,
       position: window.contextMenuPosition
@@ -108,6 +113,7 @@ export const useHydraStore = defineStore("hydra", () => {
           }
         : DEFAULT_POSITION,
       zIndex: maxZIndex + 1,
+      colorId: nextColorId,
     };
 
     window.contextMenuPosition = null;

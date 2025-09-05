@@ -112,10 +112,13 @@ onMounted(() => {
     externalBlocks.push(...getSafeLocalStorage("externalSourceBlocks"));
   }
 
-  // Ensure all blocks have a z-index property
+  // Ensure all blocks have a z-index and colorId property
   [...blocks, ...externalBlocks].forEach((block, index) => {
     if (!block.zIndex) {
       block.zIndex = index + 1;
+    }
+    if (!block.colorId) {
+      block.colorId = index;
     }
   });
 

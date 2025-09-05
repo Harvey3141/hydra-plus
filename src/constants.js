@@ -50,11 +50,12 @@ export const INITIAL_BLOCKS = [
       },
     ],
     position: DEFAULT_POSITION,
+    colorId: 0,
   },
 ];
 
-export const MAX_NUMBER_OF_SOURCES = 16;
-export const MAX_NUMBER_OF_EXTERNALS = 16;
+export const MAX_NUMBER_OF_SOURCES = 8;
+export const MAX_NUMBER_OF_EXTERNALS = 8;
 
 export const TYPE_SRC = "source";
 export const TYPE_EXTERNAL = "external";
