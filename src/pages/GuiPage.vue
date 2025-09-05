@@ -1,6 +1,7 @@
 <script setup>
-import { defineAsyncComponent, onMounted, onUpdated, ref, computed } from "vue";
+import { onMounted, onUpdated, ref, computed } from "vue";
 import { useHydraStore } from "@/stores/hydra";
+import { useModalStore } from "@/stores/modal";
 
 import { getSafeLocalStorage, setSafeLocalStorage } from "@/utils";
 import { deepCopy } from "@/utils/object-utils";
@@ -9,6 +10,7 @@ import { CURRENT_VERSION, INITIAL_BLOCKS, TYPE_SRC } from "@/constants";
 
 import NavigationPanel from "@/components/NavigationPanel";
 import ParentBlock from "@/components/ParentBlock";
+import ModalRenderer from "@/components/ModalRenderer";
 
 import Toaster from "@/components/ui/toast/Toaster";
 import {
@@ -18,44 +20,19 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuShortcut,
-  // ContextMenuSub,
-  // ContextMenuSubContent,
-  // ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 
 const store = useHydraStore();
-
-const WelcomeModal = defineAsyncComponent(() =>
-  import("@/components/modal/WelcomeModal"),
-);
-const AddBlockModal = defineAsyncComponent(() =>
-  import("@/components/modal/AddBlockModal"),
-);
-const ThreeModal = defineAsyncComponent(() =>
-  import("@/components/modal/ThreeModal"),
-);
-const SettingsModal = defineAsyncComponent(() =>
-  import("@/components/modal/SettingsModal"),
-);
+const modalStore = useModalStore();
 
 const prevBlocks = ref(null);
 const movedBlockCoordinates = ref({ x: 0, y: 0 });
 const areBlocksHidden = ref(false);
 const addBlockModalParent = ref(null);
-const isWelcomeModalOpen = ref(false);
-const isAddBlockModalOpen = ref(false);
-const isThreeModalOpen = ref(false);
-const isSettingsModalOpen = ref(false);
 
-const isAnyModalOpen = computed(() => {
-  return (
-    isWelcomeModalOpen.value ||
-    isAddBlockModalOpen.value ||
-    isThreeModalOpen.value ||
-    isSettingsModalOpen.value
-  );
-});
+// Use modal store's computed property
+const isAnyModalOpen = computed(() => modalStore.isAnyModalOpen);
 
 // set up keyboard shortcuts
 const onKeyDown = (e) => {
@@ -94,47 +71,54 @@ onMounted(() => {
     !getSafeLocalStorage("welcomeModalLastUpdate") ||
     getSafeLocalStorage("welcomeModalLastUpdate") < CURRENT_VERSION
   ) {
-    isWelcomeModalOpen.value = true;
+    modalStore.openModal("welcome");
   }
 
-  // load stuff from local storage
-  // @todo extract this mess from here
-  const blocks = [];
-  const externalBlocks = [];
+  // Initialize scenes (this will convert legacy data if needed)
+  store.initializeScenes();
 
-  if (getSafeLocalStorage("blocks")) {
-    blocks.push(...getSafeLocalStorage("blocks"));
+  // Load current scene data
+  const currentScene = store.currentScene;
+  if (currentScene) {
+    const sceneData = {
+      blocks: currentScene.blocks || [],
+      externalSourceBlocks: currentScene.externalSourceBlocks || [],
+      synthSettings: currentScene.synthSettings,
+    };
+
+    // Ensure all blocks have a z-index and colorId property
+    [...sceneData.blocks, ...sceneData.externalSourceBlocks].forEach(
+      (block, index) => {
+        if (!block.zIndex) {
+          block.zIndex = index + 1;
+        }
+        if (!block.colorId) {
+          block.colorId = index;
+        }
+      },
+    );
+
+    store.loadSceneData(sceneData);
   } else {
-    blocks.push(...INITIAL_BLOCKS);
+    // Fallback to initial blocks if no scene is available
+    const sceneData = {
+      blocks: INITIAL_BLOCKS,
+      externalSourceBlocks: [],
+      synthSettings: null,
+    };
+
+    // Ensure all blocks have a z-index and colorId property
+    sceneData.blocks.forEach((block, index) => {
+      if (!block.zIndex) {
+        block.zIndex = index + 1;
+      }
+      if (!block.colorId) {
+        block.colorId = index;
+      }
+    });
+
+    store.loadSceneData(sceneData);
   }
-
-  if (getSafeLocalStorage("externalSourceBlocks")) {
-    externalBlocks.push(...getSafeLocalStorage("externalSourceBlocks"));
-  }
-
-  // Ensure all blocks have a z-index and colorId property
-  [...blocks, ...externalBlocks].forEach((block, index) => {
-    if (!block.zIndex) {
-      block.zIndex = index + 1;
-    }
-    if (!block.colorId) {
-      block.colorId = index;
-    }
-  });
-
-  if (window.outerHeight && window.outerWidth) {
-    if (getSafeLocalStorage("synthSettings")) {
-      store.setSynthSettings(getSafeLocalStorage("synthSettings"));
-    } else {
-      eval(
-        `setResolution(${window.outerHeight * window.devicePixelRatio}, ${
-          window.outerWidth * window.devicePixelRatio
-        })`,
-      );
-    }
-  }
-
-  store.setBlocks({ blocks: [...blocks, ...externalBlocks] });
 
   document.addEventListener("keydown", onKeyDown);
 });
@@ -269,53 +253,77 @@ const pasteOnPlayground = () => {
   store.pasteBlock();
 };
 
-const closeWelcomeModal = () => {
-  isWelcomeModalOpen.value = false;
-  setSafeLocalStorage("welcomeModalLastUpdate", CURRENT_VERSION);
-};
-
 const openAddBlockModal = (parent = null) => {
   store.setFocus(parent);
   addBlockModalParent.value = parent;
-  isAddBlockModalOpen.value = true;
+  modalStore.openModal("addBlock", { parent });
 };
 
-const closeAddBlockModal = () => {
-  isAddBlockModalOpen.value = false;
+const handleWelcomeModalClose = () => {
+  modalStore.closeModal("welcome");
+  setSafeLocalStorage("welcomeModalLastUpdate", CURRENT_VERSION);
 };
 
-const openThreeModal = () => {
-  isThreeModalOpen.value = true;
-};
+const switchToScene = (sceneId) => {
+  // Save current scene data before switching
+  store.updateCurrentScene({
+    blocks: [...store.blocks],
+    externalSourceBlocks: [...store.externalSourceBlocks],
+    synthSettings: { ...store.synthSettings },
+  });
 
-const closeThreeModal = () => {
-  isThreeModalOpen.value = false;
-};
+  const scene = store.switchToScene(sceneId);
+  if (scene) {
+    // Load scene data using the store method
+    const sceneData = {
+      blocks: scene.blocks || [],
+      externalSourceBlocks: scene.externalSourceBlocks || [],
+      synthSettings: scene.synthSettings,
+    };
 
-const openSettingsModal = () => {
-  isSettingsModalOpen.value = true;
-};
+    // Ensure all blocks have a z-index and colorId property
+    [...sceneData.blocks, ...sceneData.externalSourceBlocks].forEach(
+      (block, index) => {
+        if (!block.zIndex) {
+          block.zIndex = index + 1;
+        }
+        if (!block.colorId) {
+          block.colorId = index;
+        }
+      },
+    );
 
-const closeSettingsModal = () => {
-  isSettingsModalOpen.value = false;
+    store.loadSceneData(sceneData);
+  }
 };
 </script>
 
 <template>
   <Transition name="modal">
     <div v-if="isAnyModalOpen">
-      <WelcomeModal v-if="isWelcomeModalOpen" @close="closeWelcomeModal" />
-      <AddBlockModal
-        v-if="isAddBlockModalOpen"
-        :parent="addBlockModalParent"
-        @close="closeAddBlockModal"
+      <ModalRenderer
+        v-if="modalStore.getModalState('welcome')"
+        modal-name="welcome"
+        @close="handleWelcomeModalClose"
       />
-      <ThreeModal
-        v-if="isThreeModalOpen"
-        :blocks="store.externalSourceBlocks"
-        @close="closeThreeModal"
+      <ModalRenderer
+        v-if="modalStore.getModalState('three')"
+        modal-name="three"
       />
-      <SettingsModal v-if="isSettingsModalOpen" @close="closeSettingsModal" />
+      <ModalRenderer
+        v-if="modalStore.getModalState('settings')"
+        modal-name="settings"
+      />
+      <ModalRenderer
+        v-if="modalStore.getModalState('renameScene')"
+        modal-name="renameScene"
+      />
+
+      <!-- AddBlock modal needs special parent handling, so keep it separate -->
+      <ModalRenderer
+        v-if="modalStore.getModalState('addBlock')"
+        modal-name="addBlock"
+      />
     </div>
   </Transition>
 
@@ -344,9 +352,8 @@ const closeSettingsModal = () => {
     <NavigationPanel
       v-show="!areBlocksHidden"
       @open-add-block-modal="openAddBlockModal"
-      @open-three-modal="openThreeModal"
-      @open-settings-modal="openSettingsModal"
       @toggle-fullscreen="toggleFullscreen"
+      @switch-to-scene="switchToScene"
     />
   </Transition>
 

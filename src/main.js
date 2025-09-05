@@ -4,6 +4,7 @@ import { createPinia } from "pinia";
 import "./assets/styles/main.scss";
 import "./assets/index.css";
 import App from "./App";
+import { initializeModalRegistry } from "./services/modalRegistry";
 // import { isButtonPressed, activeButtons } from "./utils/gamecontroller-utils";
 
 const pinia = createPinia();
@@ -70,5 +71,7 @@ document.addEventListener("contextmenu", (event) => {
 //       });
 //   });
 // });
+
+initializeModalRegistry();
 
 createApp(App).use(router).use(pinia).mount("#app");

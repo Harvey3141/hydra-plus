@@ -79,7 +79,7 @@ onMounted(async () => {
       cameraNames.value.push(`${i} - ${videoInput.label}`);
     }
   } catch (error) {
-    showErrorToast("Error accessing video devices:", error);
+    showErrorToast("Error accessing video devices");
   }
 });
 

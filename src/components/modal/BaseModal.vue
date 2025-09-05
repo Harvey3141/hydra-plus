@@ -35,6 +35,7 @@ const title = computed(() => {
   if (modalName === "ThreeModal") return "3D settings";
   if (modalName === "AddSourceModal") return "add source";
   if (modalName === "AddEffectModal") return "add effect";
+  if (modalName === "RenameSceneModal") return "rename scene";
   return "Default Title";
 });
 
@@ -87,7 +88,7 @@ onMounted(() => {
 
 .modal-container {
   position: fixed;
-  z-index: 1001;
+  z-index: 100;
   left: 0;
   display: flex;
   width: 100vw;
@@ -100,7 +101,7 @@ onMounted(() => {
   background: rgba(0, 0, 0, 0.3);
 
   .modal {
-    z-index: 1002;
+    z-index: 101;
     display: flex;
     width: 460px;
     max-width: 100%;

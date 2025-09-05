@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from "vue";
 import { useHydraStore } from "@/stores/hydra";
+import { useModalStore } from "@/stores/modal";
 import { MODIFIER_KEY, TYPE_COMPLEX, TYPE_EXTERNAL } from "@/constants";
 
 import {
@@ -51,12 +52,12 @@ const { toast } = useToast();
 // };
 
 const store = useHydraStore();
+const modalStore = useModalStore();
 
 const emit = defineEmits([
   "openAddBlockModal",
-  "openThreeModal",
-  "openSettingsModal",
   "toggleFullscreen",
+  "switchToScene",
 ]);
 
 // const waitingForBeat = ref(false);
@@ -77,7 +78,7 @@ const handleSend = () => {
 };
 
 const openAddBlockModal = () => {
-  emit("openAddBlockModal");
+  modalStore.openModal("addBlock");
 };
 
 const isAddEffectModalDisabled = computed(() => {
@@ -90,19 +91,15 @@ const isAddEffectModalDisabled = computed(() => {
 });
 
 const openAddEffectModal = () => {
-  emit("openAddBlockModal", store.focused);
+  modalStore.openModal("addBlock", { parent: store.focused });
 };
-
-// const openThreeModal = () => {
-//   emit("openThreeModal");
-// };
 
 const openVisualizerPage = () => {
   window.open("/visualizer", "_blank");
 };
 
 const openSettingsModal = () => {
-  emit("openSettingsModal");
+  modalStore.openModal("settings");
 };
 
 const goFullscreen = () => {
@@ -113,12 +110,100 @@ const goFullscreen = () => {
     description: "Press Esc or right click to exit",
   });
 };
+
+const handleSceneChange = (sceneId) => {
+  emit("switchToScene", sceneId);
+};
+
+const createNewScene = () => {
+  const newScene = store.createScene();
+  emit("switchToScene", newScene.id);
+
+  toast({
+    title: "New scene created",
+    description: `Scene "${newScene.name}" has been created`,
+  });
+};
+
+const deleteScene = (sceneId, event) => {
+  event.stopPropagation();
+
+  if (store.scenes.length <= 1) {
+    toast({
+      title: "Cannot delete scene",
+      description: "You must have at least one scene",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  const scene = store.scenes.find((s) => s.id === sceneId);
+  if (!scene) return;
+
+  // Store the scene name before deletion for the toast
+  const sceneName = scene.name;
+
+  const success = store.deleteScene(sceneId);
+  if (success) {
+    toast({
+      title: "Scene deleted",
+      description: `Scene "${sceneName}" has been deleted`,
+    });
+  }
+};
+
+const openRenameSceneModal = (sceneId, event) => {
+  event.stopPropagation();
+  modalStore.openModal("renameScene", { sceneId });
+};
 </script>
 
 <template>
-  <div class="navigation">
-    <Menubar>
-      <MenubarMenu>
+  <div
+    class="fixed z-[99] flex w-full p-1.5 backdrop-blur-[6px] bg-[#151515dd]"
+  >
+    <Menubar class="border-none rounded-none bg-transparent">
+      <MenubarMenu value="scene">
+        <MenubarTrigger>
+          {{ store.currentScene?.name || "Select Scene" }}
+        </MenubarTrigger>
+        <MenubarContent>
+          <MenubarItem
+            v-for="scene in store.scenes"
+            :key="scene.id"
+            class="flex items-center justify-between"
+            @click="handleSceneChange(scene.id)"
+          >
+            <span class="flex-1">{{ scene.name }}</span>
+            <div class="flex items-center">
+              <button
+                class="ml-2 text-gray-400 hover:text-gray-300"
+                title="Rename scene"
+                @click.stop="openRenameSceneModal(scene.id, $event)"
+              >
+                ✏️
+              </button>
+              <button
+                v-if="store.scenes.length > 1"
+                class="ml-2 text-red-400 hover:text-red-300"
+                title="Delete scene"
+                @click.stop="deleteScene(scene.id, $event)"
+              >
+                ×
+              </button>
+            </div>
+          </MenubarItem>
+          <MenubarSeparator />
+          <MenubarItem
+            class="text-green-400 hover:text-green-300"
+            @click="createNewScene"
+          >
+            + New Scene
+          </MenubarItem>
+        </MenubarContent>
+      </MenubarMenu>
+
+      <MenubarMenu value="new">
         <MenubarTrigger>New</MenubarTrigger>
         <MenubarContent>
           <MenubarItem @click="openAddBlockModal"> Source </MenubarItem>
@@ -128,21 +213,19 @@ const goFullscreen = () => {
           >
             Effect
           </MenubarItem>
-          <!-- <MenubarSeparator />
-        <MenubarItem disabled> Scene </MenubarItem> -->
         </MenubarContent>
       </MenubarMenu>
 
-      <MenubarMenu>
+      <MenubarMenu value="edit">
         <MenubarTrigger>Edit</MenubarTrigger>
         <MenubarContent>
           <MenubarItem :disabled="!store.canUndo" @click="store.undoRedo(1)">
             Undo
-            <MenubarShortcut>{{ MODIFIER_KEY }}+Z</MenubarShortcut>
+            <MenubarShortcut>{{ MODIFIER_KEY }}Z</MenubarShortcut>
           </MenubarItem>
           <MenubarItem :disabled="!store.canRedo" @click="store.undoRedo(-1)">
             Redo
-            <MenubarShortcut>{{ MODIFIER_KEY }}+Y</MenubarShortcut>
+            <MenubarShortcut>{{ MODIFIER_KEY }}Y</MenubarShortcut>
           </MenubarItem>
 
           <MenubarSeparator />
@@ -152,23 +235,23 @@ const goFullscreen = () => {
             @click="store.copyBlock(true)"
           >
             Cut
-            <MenubarShortcut>{{ MODIFIER_KEY }}+X</MenubarShortcut>
+            <MenubarShortcut>{{ MODIFIER_KEY }}X</MenubarShortcut>
           </MenubarItem>
           <MenubarItem
             :disabled="!store.focused"
             @click="store.copyBlock(false)"
           >
             Copy
-            <MenubarShortcut>{{ MODIFIER_KEY }}+C</MenubarShortcut>
+            <MenubarShortcut>{{ MODIFIER_KEY }}C</MenubarShortcut>
           </MenubarItem>
           <MenubarItem :disabled="!store.canPaste" @click="store.pasteBlock">
             Paste
-            <MenubarShortcut> {{ MODIFIER_KEY }}+V </MenubarShortcut>
+            <MenubarShortcut> {{ MODIFIER_KEY }}V </MenubarShortcut>
           </MenubarItem>
         </MenubarContent>
       </MenubarMenu>
 
-      <MenubarMenu>
+      <MenubarMenu value="view">
         <MenubarTrigger>View</MenubarTrigger>
         <MenubarContent>
           <MenubarItem @click="openVisualizerPage">Visualizer</MenubarItem>
@@ -191,22 +274,3 @@ const goFullscreen = () => {
     </Button>
   </div>
 </template>
-
-<style lang="scss" scoped>
-.navigation {
-  position: fixed;
-  z-index: 1000;
-  display: flex;
-  width: 100%;
-  padding: 6px;
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-  background: #151515dd;
-
-  div[role="menubar"] {
-    border: none;
-    border-radius: 0;
-    background: none;
-  }
-}
-</style>

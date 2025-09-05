@@ -2,7 +2,12 @@ import { defineStore } from "pinia";
 import { ref, computed, reactive } from "vue";
 import { useBroadcastChannel } from "@vueuse/core";
 import { deepCopy, flatten, flattenExternal } from "@/utils/object-utils";
-import { setSafeLocalStorage, showErrorToast, setHueLights } from "@/utils";
+import {
+  setSafeLocalStorage,
+  getSafeLocalStorage,
+  showErrorToast,
+  setHueLights,
+} from "@/utils";
 import {
   INITIAL_BLOCKS,
   MAX_NUMBER_OF_SOURCES,
@@ -41,6 +46,10 @@ export const useHydraStore = defineStore("hydra", () => {
   const copiedParent = ref(null);
   const isCut = ref(false);
 
+  // Scenes state
+  const scenes = ref([]);
+  const currentSceneId = ref(null);
+
   const { post } = useBroadcastChannel({ name: "hydra-plus-channel" });
 
   // Actions
@@ -58,7 +67,7 @@ export const useHydraStore = defineStore("hydra", () => {
   };
 
   const setInputFocus = (isFocused) => {
-    console.log("inputFocus", isFocused);
+    // console.log("inputFocus", isFocused);
     isInputFocused.value = isFocused;
   };
 
@@ -171,11 +180,7 @@ export const useHydraStore = defineStore("hydra", () => {
     return true;
   };
 
-  const setBlocks = ({
-    blocks: newBlocks,
-    shouldSetHistory = true,
-    // isDelete = false,
-  }) => {
+  const setBlocks = ({ blocks: newBlocks, shouldSetHistory = true }) => {
     const newSrcBlocks = newBlocks.filter((block) => block.type === TYPE_SRC);
     const newExternalBlocks = newBlocks.filter((block) =>
       [TYPE_EXTERNAL, TYPE_THREE].includes(block.type),
@@ -183,8 +188,30 @@ export const useHydraStore = defineStore("hydra", () => {
 
     blocks.value = newSrcBlocks;
     externalSourceBlocks.value = newExternalBlocks;
-    // update({ shouldSetHistory, isDelete });
     update({ shouldSetHistory });
+  };
+
+  const loadSceneData = (sceneData) => {
+    const {
+      blocks: sceneBlocks = [],
+      externalSourceBlocks: sceneExternalBlocks = [],
+      synthSettings: sceneSynthSettings,
+    } = sceneData;
+
+    blocks.value.length = 0;
+    externalSourceBlocks.value.length = 0;
+
+    history.value.length = 0;
+    historyIndex.value = 0;
+
+    blocks.value.push(...sceneBlocks);
+    externalSourceBlocks.value.push(...sceneExternalBlocks);
+
+    if (sceneSynthSettings) {
+      Object.assign(synthSettings, sceneSynthSettings);
+    }
+
+    update({ shouldSetHistory: false });
   };
 
   const setBlockPosition = ({ index, type, position }) => {
@@ -314,10 +341,13 @@ export const useHydraStore = defineStore("hydra", () => {
     if (codeString.value) {
       post(codeString.value);
 
-      setSafeLocalStorage("blocks", blocks.value);
-      setSafeLocalStorage("externalSourceBlocks", externalSourceBlocks.value);
+      updateCurrentScene({
+        blocks: blocks.value,
+        externalSourceBlocks: externalSourceBlocks.value,
+        synthSettings: synthSettings,
+      });
 
-      setSynthSettings(synthSettings);
+      saveScenes();
     }
   };
 
@@ -340,7 +370,12 @@ export const useHydraStore = defineStore("hydra", () => {
     post(`fps = ${settings.fps}`);
 
     Object.assign(synthSettings, settings);
-    setSafeLocalStorage("synthSettings", synthSettings);
+
+    updateCurrentScene({
+      synthSettings: synthSettings,
+    });
+
+    saveScenes();
   };
 
   const setOutput = (output) => {
@@ -408,8 +443,8 @@ export const useHydraStore = defineStore("hydra", () => {
   const pasteBlock = () => {
     if (!copied.value) return;
 
-    // Parent block is pasted
     if (copied.value?.position) {
+      // Parent block is pasted
       const pasted = performPaste();
 
       if (pasted && isCut.value) {
@@ -445,7 +480,8 @@ export const useHydraStore = defineStore("hydra", () => {
       target.type === TYPE_SRC &&
       (copied.value?.type === TYPE_SIMPLE ||
         copied.value?.type === TYPE_COMPLEX)) ||
-    (target.type === TYPE_COMPLEX &&
+    (target &&
+      target.type === TYPE_COMPLEX &&
       copied.value?.type === TYPE_SRC &&
       target.blocks.length === 0);
 
@@ -467,6 +503,164 @@ export const useHydraStore = defineStore("hydra", () => {
     }
   };
 
+  const initializeScenes = () => {
+    const savedScenes = getSafeLocalStorage("scenes");
+    const savedCurrentSceneId = getSafeLocalStorage("currentSceneId");
+
+    if (savedScenes) {
+      scenes.value = savedScenes;
+      // Load the saved current scene ID if it exists and is valid
+      if (
+        savedCurrentSceneId &&
+        scenes.value.some((scene) => scene.id === savedCurrentSceneId)
+      ) {
+        currentSceneId.value = savedCurrentSceneId;
+      } else if (scenes.value.length > 0) {
+        // Fallback to first scene if saved scene ID is invalid
+        currentSceneId.value = scenes.value[0].id;
+      }
+    } else {
+      convertLegacyData();
+    }
+  };
+
+  const convertLegacyData = () => {
+    const legacyBlocks = getSafeLocalStorage("blocks") || [];
+    const legacyExternalBlocks =
+      getSafeLocalStorage("externalSourceBlocks") || [];
+    const legacySynthSettings = getSafeLocalStorage("synthSettings");
+
+    const defaultScene = {
+      id: generateSceneId(),
+      name: "Scene 1",
+      blocks: legacyBlocks,
+      externalSourceBlocks: legacyExternalBlocks,
+      synthSettings: legacySynthSettings,
+    };
+
+    scenes.value = [defaultScene];
+    currentSceneId.value = defaultScene.id;
+
+    saveScenes();
+  };
+
+  const generateSceneId = () => {
+    return `scene_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  };
+
+  const createScene = (name = null) => {
+    let sceneName = null;
+
+    if (name) {
+      sceneName = name;
+    } else {
+      sceneName = `Scene ${scenes.value.length + 1}`;
+
+      let i = 2;
+      while (scenes.value.some((scene) => scene.name === sceneName)) {
+        sceneName = `Scene ${scenes.value.length + 1} (${i})`;
+        i++;
+      }
+    }
+
+    const newScene = {
+      id: generateSceneId(),
+      name: sceneName,
+      blocks: [],
+      externalSourceBlocks: [],
+      synthSettings: {
+        output: 0,
+        bpm: 120,
+        speed: 1,
+        resolution: 100,
+        fps: 60,
+      },
+    };
+
+    scenes.value.push(newScene);
+    // Set the new scene as current and save the current scene ID
+    currentSceneId.value = newScene.id;
+    setSafeLocalStorage("currentSceneId", newScene.id);
+
+    // Clear the UI blocks to start with a blank scene
+    blocks.value.length = 0;
+    externalSourceBlocks.value.length = 0;
+
+    // Reset synth settings to defaults
+    Object.assign(synthSettings, newScene.synthSettings);
+
+    update({ shouldSetHistory: false });
+
+    return newScene;
+  };
+
+  const deleteScene = (sceneId) => {
+    const sceneIndex = scenes.value.findIndex((scene) => scene.id === sceneId);
+    if (sceneIndex === -1) return false;
+
+    // Don't allow deleting the last scene
+    if (scenes.value.length === 1) {
+      return false;
+    }
+
+    const wasCurrentScene = currentSceneId.value === sceneId;
+
+    scenes.value.splice(sceneIndex, 1);
+
+    if (wasCurrentScene && scenes.value.length > 0) {
+      const newCurrentSceneId = scenes.value[0].id;
+      currentSceneId.value = newCurrentSceneId;
+      // Save the new current scene ID
+      setSafeLocalStorage("currentSceneId", newCurrentSceneId);
+
+      // Load the new current scene's data
+      const newCurrentScene = scenes.value[0];
+      if (newCurrentScene) {
+        loadSceneData({
+          blocks: newCurrentScene.blocks || [],
+          externalSourceBlocks: newCurrentScene.externalSourceBlocks || [],
+          synthSettings: newCurrentScene.synthSettings,
+        });
+      }
+    }
+
+    return true;
+  };
+
+  const switchToScene = (sceneId) => {
+    const scene = scenes.value.find((scene) => scene.id === sceneId);
+    if (scene) {
+      currentSceneId.value = sceneId;
+      setSafeLocalStorage("currentSceneId", sceneId);
+      return scene;
+    }
+    return null;
+  };
+
+  const currentScene = computed(() => {
+    return (
+      scenes.value.find((scene) => scene.id === currentSceneId.value) || null
+    );
+  });
+
+  const updateCurrentScene = (data) => {
+    const scene = currentScene.value;
+    if (!scene) return;
+
+    Object.assign(scene, data);
+  };
+
+  const saveScenes = () => {
+    setSafeLocalStorage("scenes", scenes.value);
+  };
+
+  const renameScene = (sceneId, newName) => {
+    const scene = scenes.value.find((scene) => scene.id === sceneId);
+    if (scene) {
+      scene.name = newName;
+    }
+  };
+
   return {
     // State
     r,
@@ -484,6 +678,9 @@ export const useHydraStore = defineStore("hydra", () => {
     canRedo,
     copied,
     canPaste,
+    scenes,
+    currentSceneId,
+    currentScene,
 
     // Actions
     updateRGB,
@@ -492,6 +689,7 @@ export const useHydraStore = defineStore("hydra", () => {
     addParent,
     addChild,
     setBlocks,
+    loadSceneData,
     setBlockPosition,
     setBlockZIndex,
     deleteParent,
@@ -504,5 +702,14 @@ export const useHydraStore = defineStore("hydra", () => {
     undoRedo,
     copyBlock,
     pasteBlock,
+
+    // Scene management
+    initializeScenes,
+    createScene,
+    deleteScene,
+    switchToScene,
+    updateCurrentScene,
+    renameScene,
+    saveScenes,
   };
 });
