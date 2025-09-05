@@ -11,12 +11,10 @@ import {
   MenubarMenu,
   MenubarSeparator,
   MenubarShortcut,
-  // MenubarSub,
-  // MenubarSubContent,
-  // MenubarSubTrigger,
   MenubarTrigger,
 } from "@/components/ui/menubar";
 import { Button } from "@/components/ui/button";
+import { Pencil, X } from "lucide-vue-next";
 
 import { useToast } from "@/components/ui/toast/use-toast";
 const { toast } = useToast();
@@ -181,7 +179,7 @@ const openRenameSceneModal = (sceneId, event) => {
                 title="Rename scene"
                 @click.stop="openRenameSceneModal(scene.id, $event)"
               >
-                ✏️
+                <Pencil title="Rename scene" class="w-4 h-4" />
               </button>
               <button
                 v-if="store.scenes.length > 1"
@@ -189,7 +187,7 @@ const openRenameSceneModal = (sceneId, event) => {
                 title="Delete scene"
                 @click.stop="deleteScene(scene.id, $event)"
               >
-                ×
+                <X title="Delete scene" class="w-4 h-4" />
               </button>
             </div>
           </MenubarItem>

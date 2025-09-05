@@ -28,7 +28,7 @@ export const useHydraStore = defineStore("hydra", () => {
   const focused = ref(null);
   const focusedParent = ref(null);
   const isInputFocused = ref(false);
-  const blocks = ref(INITIAL_BLOCKS);
+  const blocks = ref([]);
   const externalSourceBlocks = ref([]);
   const synthSettings = reactive({
     output: 0,
@@ -211,7 +211,7 @@ export const useHydraStore = defineStore("hydra", () => {
       Object.assign(synthSettings, sceneSynthSettings);
     }
 
-    update({ shouldSetHistory: false });
+    update();
   };
 
   const setBlockPosition = ({ index, type, position }) => {
@@ -520,7 +520,36 @@ export const useHydraStore = defineStore("hydra", () => {
         currentSceneId.value = scenes.value[0].id;
       }
     } else {
-      convertLegacyData();
+      // Check for legacy data first
+      const legacyBlocks = getSafeLocalStorage("blocks");
+      const legacyExternalBlocks = getSafeLocalStorage("externalSourceBlocks");
+      const legacySynthSettings = getSafeLocalStorage("synthSettings");
+
+      if (legacyBlocks || legacyExternalBlocks || legacySynthSettings) {
+        convertLegacyData();
+      } else {
+        // No saved data, create default scene with initial blocks
+        const defaultScene = {
+          id: generateSceneId(),
+          name: "Scene 1",
+          blocks: INITIAL_BLOCKS,
+          externalSourceBlocks: [],
+          synthSettings: {
+            output: 0,
+            bpm: 120,
+            speed: 1,
+            resolution: 100,
+            fps: 60,
+          },
+        };
+
+        scenes.value = [defaultScene];
+        currentSceneId.value = defaultScene.id;
+
+        saveScenes();
+
+        update();
+      }
     }
   };
 
