@@ -1,4 +1,4 @@
-export const CURRENT_VERSION = "0.9.0";
+export const CURRENT_VERSION = "0.9.2";
 
 export const MODIFIER_KEY = /Macintosh|Mac OS X/i.test(navigator.userAgent)
   ? "⌘"

@@ -4,14 +4,14 @@
 
 hydra+ is a double-screen visual editing environment based on the [hydra synth](https://github.com/hydra-synth/hydra-synth), designed for ease of use and to project live visuals without revealing any code.
 
-_The application is tested only on Chrome and Arc, so it may not work properly on other browsers._
+_The application is tested only on Chromium-based browsers, so it may not work properly on other browsers._
 
 If you have any questions, suggestions, or just want to report a bug, please use the **Issues** or **Discussions** tab on [Github](https://github.com/dahegyi/hydra-plus).
 
 ## Known issues:
 
 - initScreen doesn't work properly in visualizer
-- initScreen doesn't initialize working after refreshing the page
+- initScreen doesn't initialize properly after refreshing the page
 
 ## Local development
 
