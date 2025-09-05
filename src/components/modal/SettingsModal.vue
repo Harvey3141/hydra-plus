@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { useHydraStore } from "@/stores/hydra";
 import { useAppStore } from "@/stores/app";
-import { deepCopy } from "@/utils/object-utils";
+import { deepCopy, downloadBeautifiedCode } from "@/utils/object-utils";
 
 import BaseModal from "./BaseModal";
 
@@ -31,17 +31,8 @@ const setSynthSettings = () => {
   store.setSynthSettings(synthSettings.value);
 };
 
-// @todo extract this
 const download = () => {
-  const code = store.codeString;
-  const blob = new Blob([code], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-  const formattedDatetime = new Date().toISOString().replace(/:/g, "-");
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `hydra-plus-export-${formattedDatetime}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadBeautifiedCode(store.codeString);
 };
 
 const close = () => {
