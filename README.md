@@ -21,9 +21,33 @@ If you have any questions, suggestions, or just want to report a bug, please use
 
 ### Usage
 
-- `npm run dev` - Runs the development server
+- `npm run dev` - Runs Vite + WebSocket relay server (supports both local and cross-machine use)
 - `npm run build` - Builds the production version
 - `npm run preview` - Serves the production version locally
 - `npm run prepare` - Installs the Git hooks (runs automatically on `npm install`)
 - `npm run lint` - Runs ESLint and Stylelint
 - `npm run lint:fix` - Runs ESLint and Stylelint and fixes the errors
+
+### Cross-machine LAN setup
+
+The GUI and Visualizer can run on separate machines on the same network. The Visualizer page is designed to be shown on a second screen or projector without exposing the editor UI.
+
+**Architecture:**
+
+```
+Machine A: Vite :5173 + WebSocket relay :3001
+  GuiPage → ws://localhost:3001
+
+Machine B: opens http://<Machine-A-IP>:5173/visualizer
+  VisualizerPage → ws://<Machine-A-IP>:3001
+```
+
+**Steps:**
+
+1. On Machine A, run `npm run dev`
+2. Note the Network URL printed by Vite, e.g. `http://192.168.1.X:5173/`
+3. On Machine B, open `http://192.168.1.X:5173/visualizer`
+4. Use the GUI on Machine A — clicking **Send** will push the current sketch to the Visualizer on Machine B
+
+Both pages reconnect automatically if the relay is restarted.
+

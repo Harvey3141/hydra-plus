@@ -6,6 +6,9 @@ import tailwind from "tailwindcss";
 
 export default defineConfig(({ mode }) => {
   const config = {
+    server: {
+      host: true,
+    },
     define: {
       __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
     },

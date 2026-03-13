@@ -1,13 +1,28 @@
 <script setup>
-import { watch } from "vue";
-import { useBroadcastChannel } from "@vueuse/core";
+import { onMounted, onUnmounted } from "vue";
 
 // import { onMIDISuccess, onMIDIFailure } from "@/utils/midi-utils";
 
-const { data } = useBroadcastChannel({ name: "hydra-plus-channel" });
+let ws = null;
+const connectRelay = () => {
+  ws = new WebSocket(`ws://${window.location.hostname}:3001`);
+  ws.addEventListener("open", () =>
+    console.log("[hydra-plus] visualizer relay connected"),
+  );
+  ws.addEventListener("message", (event) => {
+    console.log("[hydra-plus] visualizer received:", event.data);
+    if (event.data) window.eval(event.data);
+  });
+  ws.addEventListener("close", () => {
+    ws = null;
+    setTimeout(connectRelay, 3000);
+  });
+  ws.addEventListener("error", () => {});
+};
 
-watch(data, () => {
-  if (data.value) window.eval(data.value);
+onMounted(() => connectRelay());
+onUnmounted(() => {
+  if (ws) ws.close();
 });
 
 // onMounted(() => {

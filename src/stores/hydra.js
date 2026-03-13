@@ -1,6 +1,5 @@
 import { defineStore } from "pinia";
 import { ref, computed, reactive } from "vue";
-import { useBroadcastChannel } from "@vueuse/core";
 import { deepCopy, flatten, flattenExternal } from "@/utils/object-utils";
 import {
   setSafeLocalStorage,
@@ -50,7 +49,23 @@ export const useHydraStore = defineStore("hydra", () => {
   const scenes = ref([]);
   const currentSceneId = ref(null);
 
-  const { post } = useBroadcastChannel({ name: "hydra-plus-channel" });
+  let ws = null;
+  const connectRelay = () => {
+    const host = window.location.hostname;
+    ws = new WebSocket(`ws://${host}:3001`);
+    ws.addEventListener("open", () =>
+      console.log("[hydra-plus] relay connected"),
+    );
+    ws.addEventListener("close", () => {
+      ws = null;
+      setTimeout(connectRelay, 3000);
+    });
+    ws.addEventListener("error", () => {});
+  };
+  connectRelay();
+  const sendToVisualizer = (message) => {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(message);
+  };
 
   // Actions
   const updateRGB = ({ red, green, blue }) => {
@@ -143,7 +158,7 @@ export const useHydraStore = defineStore("hydra", () => {
         externalSourceBlocks.value.length - 1,
       );
       window.eval(addedExternal);
-      post(addedExternal);
+      sendToVisualizer(addedExternal);
     } else {
       setBlocks({
         blocks: [...blocks.value, ...externalSourceBlocks.value],
@@ -339,7 +354,7 @@ export const useHydraStore = defineStore("hydra", () => {
 
   const send = () => {
     if (codeString.value) {
-      post(codeString.value);
+      sendToVisualizer(codeString.value);
 
       updateCurrentScene({
         blocks: blocks.value,
@@ -353,9 +368,9 @@ export const useHydraStore = defineStore("hydra", () => {
 
   const setSynthSettings = (settings) => {
     window.eval(`bpm = ${settings.bpm}`);
-    post(`bpm = ${settings.bpm}`);
+    sendToVisualizer(`bpm = ${settings.bpm}`);
     window.eval(`speed = ${settings.speed}`);
-    post(`speed = ${settings.speed}`);
+    sendToVisualizer(`speed = ${settings.speed}`);
 
     const multiplier = (settings.resolution * window.devicePixelRatio) / 100;
     const width = window.outerWidth * multiplier;
@@ -363,10 +378,10 @@ export const useHydraStore = defineStore("hydra", () => {
     const resolutionString = `setResolution(${height}, ${width})`;
 
     window.eval(resolutionString);
-    post(resolutionString);
+    sendToVisualizer(resolutionString);
 
     window.eval(`fps = ${settings.fps}`);
-    post(`fps = ${settings.fps}`);
+    sendToVisualizer(`fps = ${settings.fps}`);
 
     Object.assign(synthSettings, settings);
 
